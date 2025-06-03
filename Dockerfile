@@ -1,5 +1,5 @@
 # 第一阶段：构建阶段
-FROM golang:1.23-alpine AS builder
+FROM registry.cn-hangzhou.aliyuncs.com/library/golang:1.23-alpine AS builder
 
 # 设置环境变量
 ENV CGO_ENABLED=0
@@ -26,7 +26,7 @@ COPY . .
 RUN go build -ldflags="-s -w" -o main .
 
 # 第二阶段：运行阶段
-FROM alpine:latest
+FROM registry.cn-hangzhou.aliyuncs.com/library/alpine:latest
 
 # 更换阿里云镜像源
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
@@ -63,7 +63,7 @@ EXPOSE 8090
 
 # 设置健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8090/ || exit 1
 
 # 启动应用
-CMD ["./essay-stateless"] 
+CMD ["./main"] 
