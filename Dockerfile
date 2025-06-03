@@ -1,5 +1,5 @@
 # 第一阶段：构建阶段
-FROM registry.cn-hangzhou.aliyuncs.com/library/golang:1.23-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # 设置环境变量
 ENV CGO_ENABLED=0
@@ -26,7 +26,7 @@ COPY . .
 RUN go build -ldflags="-s -w" -o main .
 
 # 第二阶段：运行阶段
-FROM registry.cn-hangzhou.aliyuncs.com/library/alpine:latest
+FROM alpine:latest
 
 # 更换阿里云镜像源
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
