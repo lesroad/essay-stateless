@@ -5,14 +5,14 @@ import (
 )
 
 type Response struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
 }
 
-func NewSuccessResponse(data interface{}) *Response {
+func NewSuccessResponse(data any) *Response {
 	return &Response{
-		Code:    200,
+		Code:    0,
 		Message: "success",
 		Data:    data,
 	}
@@ -62,12 +62,12 @@ type Counting struct {
 
 type AIEvaluation struct {
 	ModelVersion           ModelVersion           `json:"modelVersion"`
-	OverallEvaluation      OverallEvaluation      `json:"overallEvaluation"`
-	FluencyEvaluation      FluencyEvaluation      `json:"fluencyEvaluation"`
-	WordSentenceEvaluation WordSentenceEvaluation `json:"wordSentenceEvaluation"`
-	ExpressionEvaluation   ExpressionEvaluation   `json:"expressionEvaluation"`
-	SuggestionEvaluation   SuggestionEvaluation   `json:"suggestionEvaluation"`
-	ParagraphEvaluations   []ParagraphEvaluation  `json:"paragraphEvaluations"`
+	OverallEvaluation      OverallEvaluation      `json:"overallEvaluation"`      // 总评
+	FluencyEvaluation      FluencyEvaluation      `json:"fluencyEvaluation"`      // 流畅度评价
+	WordSentenceEvaluation WordSentenceEvaluation `json:"wordSentenceEvaluation"` // 好词好句评价
+	ExpressionEvaluation   ExpressionEvaluation   `json:"expressionEvaluation"`   // 逻辑表达评价
+	SuggestionEvaluation   SuggestionEvaluation   `json:"suggestionEvaluation"`   // 建议
+	ParagraphEvaluations   []ParagraphEvaluation  `json:"paragraphEvaluations"`   // 段落点评
 }
 
 type ModelVersion struct {
@@ -85,6 +85,83 @@ type FluencyEvaluation struct {
 	FluencyScore       int    `json:"fluencyScore"`
 }
 
+/*
+	{
+		"wordSentenceEvaluation": {
+			"sentenceEvaluations": [
+				[{
+					"isGoodSentence": false,
+					"label": "",
+					"type": {},
+					"wordEvaluations": [{
+						"ori": "，",
+						"revised": "、",
+						"span": [55, 56],
+						"type": {
+							"level1": "还需努力",
+							"level2": "标点问题"
+						}
+					}, {
+						"ori": "，",
+						"revised": "。",
+						"span": [64, 65],
+						"type": {
+							"level1": "还需努力",
+							"level2": "标点问题"
+						}
+					}]
+				}],
+				[{
+					"isGoodSentence": false,
+					"label": "",
+					"type": {},
+					"wordEvaluations": []
+				}, {
+					"isGoodSentence": true,
+					"label": "排比",
+					"type": {
+						"level1": "作文亮点",
+						"level2": "好句"
+					},
+					"wordEvaluations": [{
+						"span": [7, 11],
+						"type": {
+							"level1": "作文亮点",
+							"level2": "好词"
+						}
+					}]
+				}, {
+					"isGoodSentence": true,
+					"label": "比拟",
+					"type": {
+						"level1": "作文亮点",
+						"level2": "好句"
+					},
+					"wordEvaluations": []
+				}, {
+					"isGoodSentence": false,
+					"label": "",
+					"type": {},
+					"wordEvaluations": []
+				}, {
+					"isGoodSentence": true,
+					"label": "比拟",
+					"type": {
+						"level1": "作文亮点",
+						"level2": "好句"
+					},
+					"wordEvaluations": []
+				}, {
+					"isGoodSentence": false,
+					"label": "",
+					"type": {},
+					"wordEvaluations": []
+				}]
+			],
+			"wordSentenceScore": 0
+		}
+	}
+*/
 type WordSentenceEvaluation struct {
 	SentenceEvaluations [][]SentenceEvaluation `json:"sentenceEvaluations"`
 	WordSentenceScore   int                    `json:"wordSentenceScore"`
@@ -104,6 +181,12 @@ type WordEvaluation struct {
 	Revised string            `json:"revised,omitempty"`
 }
 
+/*
+	"expressionEvaluation": {
+				"expressDescription": "作文能围绕主题展开，但逻辑表达较松散，缺乏层次感。描述场景时重复信息较多（如“放风筝”），未能有效组织细节。人物活动描写琐碎，未形成连贯叙事。建议学习如何筛选关键细节，构建更有条理的场景描写，避免重复和碎片化表达。",
+				"expressionScore": 2
+			},
+*/
 type ExpressionEvaluation struct {
 	ExpressDescription string `json:"expressDescription"`
 	ExpressionScore    int    `json:"expressionScore"`

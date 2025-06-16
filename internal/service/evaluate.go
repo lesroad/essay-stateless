@@ -6,6 +6,7 @@ import (
 	"essay-stateless/internal/model"
 	"essay-stateless/pkg/httpclient"
 	"sync"
+	"unicode/utf8"
 )
 
 type EvaluateService interface {
@@ -45,8 +46,8 @@ func (s *evaluateService) BetaEvaluate(ctx context.Context, req *model.BetaEvalu
 		essayInfo.EssayType = *req.EssayType
 	}
 
-	essay["grade_int"] = essayInfo.Grade
-	essay["essay_type"] = essayInfo.EssayType
+	essay["grade"] = essayInfo.Grade
+	essay["type"] = essayInfo.EssayType
 
 	response := &model.BetaEvaluateResponse{}
 	response.Title = req.Title
@@ -258,16 +259,42 @@ type GrammarPosition struct {
 	RelativeIndex  int
 }
 
+/*
+// 假设文本结构如下：
+text = [
+
+	["第一段第一句", "第一段第二句"],
+	["第二段第一句", "第二段第二句"]
+
+]
+
+// 如果 startPos = 8
+// 函数会计算：
+// - 第一段第一句：位置 0-4 (长度5)
+// - 第一段第二句：位置 5-9 (长度5)
+// startPos=8 落在第一段第二句中，相对位置是 8-5=3
+
+// 返回结果：
+
+	{
+	    ParagraphIndex: 0,  // 第一段
+	    SentenceIndex: 1,   // 第二句
+	    RelativeIndex: 3    // 句子中第3个字符位置
+	}
+*/
+
+// 字符偏移量
 func (s *evaluateService) getSentenceRelativeIndex(text [][]string, startPos int) *GrammarPosition {
 	currentPos := 0
 	for pIndex, paragraph := range text {
 		for sIndex, sentence := range paragraph {
-			sentenceLen := len(sentence)
+			// 使用字符长度而不是字节长度
+			sentenceLen := utf8.RuneCountInString(sentence)
 			if startPos >= currentPos && startPos < currentPos+sentenceLen {
 				return &GrammarPosition{
 					ParagraphIndex: pIndex,
 					SentenceIndex:  sIndex,
-					RelativeIndex:  startPos - currentPos,
+					RelativeIndex:  startPos - currentPos - 1,
 				}
 			}
 			currentPos += sentenceLen
@@ -320,7 +347,7 @@ type APIEssayInfo struct {
 	EssayType string           `json:"essay_type"`
 	Counting  APIEssayCounting `json:"counting"`
 	Sents     [][]string       `json:"sents"`
-	Code      int              `json:"code"`
+	Code      string           `json:"code"`
 	Message   string           `json:"message"`
 }
 
@@ -355,9 +382,58 @@ type APIFluency struct {
 	Message string `json:"message"`
 }
 
+/*
+	{
+	  "code": 200,
+	  "data": {
+	    "grade": 2,
+	    "results": {
+	      "good_sents": [ // 好句分析
+	        {
+	          "label": "排比", // 修辞手法
+	          "paragraph_id": 0, // 第0段
+	          "sent_id": 2  // 第2句
+	        },
+	        {
+	          "label": "比拟",
+	          "paragraph_id": 0,
+	          "sent_id": 3
+	        },
+	        {
+	          "label": "比拟",
+	          "paragraph_id": 0,
+	          "sent_id": 5
+	        }
+	      ],
+	      "good_words": [ // 好词分析
+	        {
+	          "end": 11, // 结束位置：第11个字符，即：五颜六色
+	          "paragraph_id": 0, // 第0段
+	          "sent_id": 2, // 第2句
+	          "start": 7  // 开始位置：第7个字符
+	        }
+	      ],
+	      "type": "good_expression"
+	    },
+	    "sents": [
+	      [ // 第0段（只有一个段落）
+	        "春天来了，广场上十分热闹，孩子们都在放风筝。",  // 第0句
+	        "\\n广场上，大家都在放风筝。",
+	        "风筝各种各样，五颜六色，有小鸟的、蝴蝶的，金鱼的，十分美丽，广场上有两个孩子，一个在放蝴蝶风筝，一个在放小鸟风筝，还有一个在把着小鸟风筝的脚，把着小鸟风筝杆的人好似在说：“你先把着，一会儿风来了你再放手！”",
+	        "把着小鸟风筝脚的说：“好！”",
+	        "还有一对夫妻，一个孩子，小孩正在放着三角形的风筝，那对夫妻脸上挂着幸福的笑容，心里好像在想着什么？",
+	        "还有一个老鹰，已经看不到是谁在放了，那条飞龙风筝也看不见了。",
+	        "广场上的人脸上都挂着开心的笑容。" // 第6句
+	      ]
+	    ],
+	    "type": "good_expression"
+	  },
+	  "message": "response success"
+	}
+*/
 type APIWordSentence struct {
 	Data    APIWordSentenceData `json:"data"`
-	Score   int                 `json:"score"`
+	Score   int                 `json:"score"` // 貌似没值？
 	Code    int                 `json:"code"`
 	Message string              `json:"message"`
 }
@@ -384,6 +460,32 @@ type APIGoodWord struct {
 	End         int `json:"end"`
 }
 
+/*
+	{
+	    "code": "200",
+	    "grammar": {
+	        "typo": [
+	            {
+	                "end_pos": 57,
+	                "extra": "春天来了，广场上十分热闹，孩子们都在放风筝。\\n广场上，大家都在放风筝。风筝各种各样，五颜六色，有小鸟的、蝴蝶的，金鱼的，十分美丽，广场上有两个孩子，一个在放蝴蝶风筝，一个在放小鸟风筝，还有一个在把着小鸟风筝的脚，把着小鸟风筝杆的人好似在说：“你先把着，一会儿风来了你再放手！”把着小鸟风筝脚的说：“好！”还有一对夫妻，一个孩子，小孩正在放着三角形的风筝，那对夫妻脸上挂着幸福的笑容，心里好像在想着什么？还有一个老鹰，已经看不到是谁在放了，那条飞龙风筝也看不见了。广场上的人脸上都挂着开心的笑容。",
+	                "ori": "，",
+	                "revised": "、",
+	                "start_pos": 56,
+	                "type": "标点问题"
+	            },
+	            {
+	                "end_pos": 66,
+	                "extra": "春天来了，广场上十分热闹，孩子们都在放风筝。\\n广场上，大家都在放风筝。风筝各种各样，五颜六色，有小鸟的、蝴蝶的，金鱼的，十分美丽，广场上有两个孩子，一个在放蝴蝶风筝，一个在放小鸟风筝，还有一个在把着小鸟风筝的脚，把着小鸟风筝杆的人好似在说：“你先把着，一会儿风来了你再放手！”把着小鸟风筝脚的说：“好！”还有一对夫妻，一个孩子，小孩正在放着三角形的风筝，那对夫妻脸上挂着幸福的笑容，心里好像在想着什么？还有一个老鹰，已经看不到是谁在放了，那条飞龙风筝也看不见了。广场上的人脸上都挂着开心的笑容。",
+	                "ori": "，",
+	                "revised": "。",
+	                "start_pos": 65,
+	                "type": "标点问题"
+	            }
+	        ]
+	    },
+	    "message": "response success"
+	}
+*/
 type APIGrammarInfo struct {
 	Grammar APIGrammar `json:"grammar"`
 	Code    int        `json:"code"`

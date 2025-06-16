@@ -17,7 +17,7 @@ type rawLogsRepository struct {
 
 func NewRawLogsRepository(db *mongo.Database) RawLogsRepository {
 	return &rawLogsRepository{
-		collection: db.Collection("raw_logs"),
+		collection: db.Collection("sts_logs"),
 	}
 }
 

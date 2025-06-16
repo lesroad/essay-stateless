@@ -65,7 +65,7 @@ func (s *ocrService) beeDefaultOcr(ctx context.Context, imageType string, req *m
 
 	content := strings.Join(results, "\n")
 	return &model.DefaultOcrResponse{
-		Title:   nil, 
+		Title:   nil,
 		Content: content,
 	}, nil
 }
@@ -128,7 +128,7 @@ func (s *ocrService) ocrOne(ctx context.Context, image, imageParam, leftType str
 	}
 
 	if ocrResp.Code != 0 {
-		return nil, fmt.Errorf("OCR服务返回错误: %s", ocrResp.Msg)
+		return nil, fmt.Errorf("OCR服务返回错误!: %s, %d", ocrResp.Msg, ocrResp.Code)
 	}
 
 	return s.processOcrResponse(ocrResp.Data, leftType)
@@ -143,11 +143,11 @@ func (s *ocrService) processOcrResponse(data *BeeOcrData, leftType string) ([]st
 	var exclude int = -1
 	switch leftType {
 	case "handwriting":
-		exclude = 0 
+		exclude = 0
 	case "print":
-		exclude = 1 
+		exclude = 1
 	default:
-		exclude = -1 
+		exclude = -1
 	}
 
 	excludes := make(map[int]bool)

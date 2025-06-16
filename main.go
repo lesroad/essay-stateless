@@ -2,20 +2,20 @@ package main
 
 import (
 	"context"
+	"essay-stateless/internal/config"
+	"essay-stateless/internal/handler"
+	"essay-stateless/internal/middleware"
+	"essay-stateless/internal/repository"
+	"essay-stateless/internal/service"
+	"essay-stateless/pkg/database"
+	"essay-stateless/pkg/logger"
+	"essay-stateless/pkg/trace"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"essay-stateless/internal/config"
-	"essay-stateless/internal/handler"
-	"essay-stateless/internal/repository"
-	"essay-stateless/internal/service"
-	"essay-stateless/pkg/database"
-	"essay-stateless/pkg/logger"
-	"essay-stateless/pkg/trace"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -80,6 +80,7 @@ func setupRouter(evaluateHandler *handler.EvaluateHandler, ocrHandler *handler.O
 	router.Use(gin.Recovery())
 	router.Use(otelgin.Middleware("essay-stateless"))
 	router.Use(trace.TraceIDMiddleware())
+	router.Use(middleware.RequestLoggerMiddleware())
 
 	v1 := router.Group("/evaluate")
 	{
