@@ -3,21 +3,23 @@ package config
 import (
 	_ "embed"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
 )
 
-//go:embed config.local.yaml
+// //go:embed config.local.yaml
 var configData []byte
 
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Database DatabaseConfig `mapstructure:"database"`
-	Beta     BetaConfig     `mapstructure:"beta"`
+	Evaluate EvaluateConfig `mapstructure:"evaluate"`
 	OCR      OCRConfig      `mapstructure:"ocr"`
 	Log      LogConfig      `mapstructure:"log"`
 	Trace    TraceConfig    `mapstructure:"trace"`
+	Lago     LagoConfig     `mapstructure:"lago"`
 }
 
 type ServerConfig struct {
@@ -29,12 +31,12 @@ type DatabaseConfig struct {
 	Database string `mapstructure:"database"`
 }
 
-type BetaConfig struct {
-	API          BetaAPIConfig          `mapstructure:"api"`
-	ModelVersion BetaModelVersionConfig `mapstructure:"model_version"`
+type EvaluateConfig struct {
+	API          EvaluateAPIConfig          `mapstructure:"api"`
+	ModelVersion EvaluateModelVersionConfig `mapstructure:"model_version"`
 }
 
-type BetaAPIConfig struct {
+type EvaluateAPIConfig struct {
 	Overall      string `mapstructure:"overall"`
 	Fluency      string `mapstructure:"fluency"`
 	WordSentence string `mapstructure:"word_sentence"`
@@ -42,10 +44,11 @@ type BetaAPIConfig struct {
 	Suggestion   string `mapstructure:"suggestion"`
 	Paragraph    string `mapstructure:"paragraph"`
 	GrammarInfo  string `mapstructure:"grammar_info"`
+	Score        string `mapstructure:"score"`
 	EssayInfo    string `mapstructure:"essay_info"`
 }
 
-type BetaModelVersionConfig struct {
+type EvaluateModelVersionConfig struct {
 	Name    string `mapstructure:"name"`
 	Version string `mapstructure:"version"`
 }
@@ -55,6 +58,10 @@ type OCRConfig struct {
 	BeeAPI          string `mapstructure:"bee_api"`
 	XAppKey         string `mapstructure:"x_app_key"`
 	XAppSecret      string `mapstructure:"x_app_secret"`
+	// ARK 大模型配置
+	ArkAPIKey  string `mapstructure:"ark_api_key"`
+	ArkBaseURL string `mapstructure:"ark_base_url"`
+	ArkModel   string `mapstructure:"ark_model"`
 }
 
 type LogConfig struct {
@@ -67,11 +74,33 @@ type TraceConfig struct {
 	Endpoint    string `mapstructure:"endpoint"`
 }
 
+type LagoConfig struct {
+	APIKey  string `mapstructure:"api_key"`
+	BaseURL string `mapstructure:"base_url"`
+	Enabled bool   `mapstructure:"enabled"`
+}
+
 func Load() *Config {
 	viper.SetConfigType("yaml")
+	if len(configData) > 0 {
+		if err := viper.ReadConfig(strings.NewReader(string(configData))); err != nil {
+			log.Fatal("Failed to parse config from memory:", err)
+		}
+	} else {
+		path := os.Getenv("CONFIG_PATH")
+		if path == "" {
+			log.Fatal("CONFIG_PATH environment variable is not set and no config data provided")
+		}
 
-	if err := viper.ReadConfig(strings.NewReader(string(configData))); err != nil {
-		log.Fatal("Failed to parse config:", err)
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			log.Fatal("Config file not found:", path)
+		}
+
+		viper.SetConfigFile(path)
+
+		if err := viper.ReadInConfig(); err != nil {
+			log.Fatal("Failed to read config file:", err)
+		}
 	}
 
 	setDefaults()

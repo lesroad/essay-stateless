@@ -1,69 +1,65 @@
-# 第一阶段：构建阶段
-FROM golang:1.23-alpine AS builder
+FROM registry.cn-shanghai.aliyuncs.com/lesroad/infrastructure:golang_1.23-alpine AS builder
 
-# 设置环境变量
+LABEL stage=gobuilder
+
 ENV CGO_ENABLED=0
 ENV GOOS=linux
-ENV GOPROXY=https://goproxy.cn,direct
+ENV GOARCH=amd64
 
-# 更换阿里云镜像源（适合阿里云ACR构建）
+# 修改 Alpine 包管理工具 apk 的软件源为阿里云镜像，加速后续依赖安装（国内环境优化）
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
-# 安装必要的构建工具
-RUN apk update --no-cache && apk add --no-cache git ca-certificates tzdata
+# apk update：更新软件源索引（--no-cache 不缓存索引文件，减小层体积）
+# apk add tzdata：安装时区数据（用于后续设置容器时区）。
+# apk add ca-certificates：安装 CA 证书（用于 HTTPS 通信，如访问 HTTPS 接口）。
+RUN apk update --no-cache && apk add --no-cache tzdata ca-certificates
 
-# 设置工作目录
+# 设置当前工作目录为 /build，后续命令均在此目录执行。
 WORKDIR /build
 
-# 复制go模块文件并下载依赖
-COPY go.mod go.sum ./
+# 优化构建缓存
+ADD go.mod .
+ADD go.sum .
 RUN go mod download
 
-# 复制源代码
+# 将当前目录（宿主机构建上下文）的所有文件复制到容器的 /build 目录（包括代码、配置等）。
 COPY . .
 
-# 构建应用
-RUN go build -ldflags="-s -w" -o main .
+# 直接编译Go程序
+RUN go build -ldflags="-s -w" -o app main.go
 
-# 第二阶段：运行阶段
-FROM alpine:latest
+FROM registry.cn-shanghai.aliyuncs.com/lesroad/infrastructure:alpine_3.18
 
-# 更换阿里云镜像源
+# 安装必要的运行时依赖
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
-
-# 安装ca-certificates和tzdata
 RUN apk --no-cache add ca-certificates tzdata
+
+WORKDIR /app
+
+# 复制二进制文件和配置文件
+COPY --from=builder /build/app /app/
+COPY --from=builder /build/internal/config/config.yaml /app/internal/config/
+COPY --from=builder /build/static /app/static
 
 # 设置时区
 ENV TZ=Asia/Shanghai
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# 创建非root用户
+# 创建非root用户（安全最佳实践）
 RUN addgroup -g 1001 -S appgroup && \
-    adduser -S appuser -u 1001 -G appgroup
+    adduser -u 1001 -S appuser -G appgroup
 
-# 设置工作目录
-WORKDIR /app
-
-# 从构建阶段复制二进制文件
-COPY --from=builder /build/main ./
-
-# 复制配置文件目录
-COPY --from=builder /build/configs ./configs
-
-# 更改文件所有权
-RUN chown -R appuser:appgroup /app && \
-    chmod +x /app/main
+# 改变文件所有权
+RUN chown -R appuser:appgroup /app
 
 # 切换到非root用户
 USER appuser
 
-# 暴露端口
+# 暴露端口8090
 EXPOSE 8090
 
-# 设置健康检查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8090/ || exit 1
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8090/test || exit 1
 
-# 启动应用
-CMD ["./main"] 
+CMD ["./app"]

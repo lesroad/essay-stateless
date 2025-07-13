@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type Client struct {
@@ -16,7 +18,8 @@ type Client struct {
 func New() *Client {
 	return &Client{
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout:   120 * time.Second,
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
 		},
 	}
 }
@@ -41,7 +44,7 @@ func (c *Client) Post(ctx context.Context, url string, data interface{}, result 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return fmt.Errorf("unexpected status code: %d, body: %v", resp.StatusCode, resp.Body)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(result); err != nil {

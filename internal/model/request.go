@@ -4,35 +4,31 @@ import (
 	"encoding/json"
 )
 
-type BetaEvaluateRequest struct {
+// EvaluateRequest 作文批改请求
+type EvaluateRequest struct {
 	Title     string  `json:"title"`
 	Content   string  `json:"content"`
 	Grade     *int    `json:"grade,omitempty"`
 	EssayType *string `json:"essayType,omitempty"`
 }
 
-func (r *BetaEvaluateRequest) JSONString() string {
-	data, err := json.Marshal(r)
-	if err != nil {
-		return "序列化失败"
-	}
+func (r *EvaluateRequest) JSONString() string {
+	data, _ := json.Marshal(r)
 	return string(data)
 }
 
-type BetaOcrEvaluateRequest struct {
+// OcrEvaluateRequest OCR作文批改请求
+type OcrEvaluateRequest struct {
 	Images    []string `json:"images"`
-	LeftType  *string  `json:"leftType,omitempty"`
-	ImageType *string  `json:"imageType,omitempty"`
+	LeftType  string   `json:"leftType"`
 	Provider  *string  `json:"provider,omitempty"`
+	ImageType *string  `json:"imageType,omitempty"`
 	Grade     *int     `json:"grade,omitempty"`
 	EssayType *string  `json:"essayType,omitempty"`
 }
 
-func (r *BetaOcrEvaluateRequest) JSONString() string {
-	data, err := json.Marshal(r)
-	if err != nil {
-		return "序列化失败"
-	}
+func (r *OcrEvaluateRequest) JSONString() string {
+	data, _ := json.Marshal(r)
 	return string(data)
 }
 
