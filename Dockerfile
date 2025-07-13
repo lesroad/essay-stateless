@@ -28,8 +28,6 @@ RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 
 COPY --from=builder /build/app /app/
-COPY --from=builder /build/internal/config/config.yaml /app/internal/config/
-COPY --from=builder /build/static /app/static
 
 ENV TZ=Asia/Shanghai
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
