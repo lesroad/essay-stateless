@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// //go:embed config.local.yaml
+// // go:embed config.local.yaml
 var configData []byte
 
 type Config struct {
@@ -46,6 +46,7 @@ type EvaluateAPIConfig struct {
 	GrammarInfo  string `mapstructure:"grammar_info"`
 	Score        string `mapstructure:"score"`
 	EssayInfo    string `mapstructure:"essay_info"`
+	Polishing    string `mapstructure:"polishing"`
 }
 
 type EvaluateModelVersionConfig struct {

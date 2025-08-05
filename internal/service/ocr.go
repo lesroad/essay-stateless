@@ -14,7 +14,6 @@ import (
 )
 
 type OcrService interface {
-	DefaultOcr(ctx context.Context, provider, imageType string, req *model.DefaultOcrRequest) (*model.DefaultOcrResponse, error)
 	TitleOcr(ctx context.Context, provider, imageType string, req *model.TitleOcrRequest) (*model.TitleOcrResponse, error)
 }
 
@@ -37,21 +36,6 @@ func NewOcrService(config *config.OCRConfig) OcrService {
 	}
 }
 
-func (s *ocrService) DefaultOcr(ctx context.Context, provider, imageType string, req *model.DefaultOcrRequest) (*model.DefaultOcrResponse, error) {
-	if provider == "" {
-		provider = s.config.DefaultProvider
-	}
-
-	switch provider {
-	case "bee":
-		return s.beeDefaultOcr(ctx, imageType, req)
-	case "ark":
-		return s.arkDefaultOcr(ctx, req)
-	default:
-		return s.beeDefaultOcr(ctx, imageType, req)
-	}
-}
-
 func (s *ocrService) TitleOcr(ctx context.Context, provider, imageType string, req *model.TitleOcrRequest) (*model.TitleOcrResponse, error) {
 	if provider == "" {
 		provider = s.config.DefaultProvider
@@ -65,24 +49,6 @@ func (s *ocrService) TitleOcr(ctx context.Context, provider, imageType string, r
 	default:
 		return s.beeTitleOcr(ctx, imageType, req)
 	}
-}
-
-func (s *ocrService) beeDefaultOcr(ctx context.Context, imageType string, req *model.DefaultOcrRequest) (*model.DefaultOcrResponse, error) {
-	leftType := "all"
-	if req.LeftType != nil {
-		leftType = *req.LeftType
-	}
-
-	results, err := s.ocrImages(ctx, req.Images, imageType, leftType)
-	if err != nil {
-		return nil, err
-	}
-
-	content := strings.Join(results, "\n")
-	return &model.DefaultOcrResponse{
-		Title:   nil,
-		Content: content,
-	}, nil
 }
 
 func (s *ocrService) beeTitleOcr(ctx context.Context, imageType string, req *model.TitleOcrRequest) (*model.TitleOcrResponse, error) {
@@ -209,32 +175,6 @@ type BeeOcrArea struct {
 type ArkOcrResponse struct {
 	Title string `json:"title"`
 	Text  string `json:"text"`
-}
-
-// ARK Default OCR实现
-func (s *ocrService) arkDefaultOcr(ctx context.Context, req *model.DefaultOcrRequest) (*model.DefaultOcrResponse, error) {
-	if len(req.Images) == 0 {
-		return &model.DefaultOcrResponse{
-			Title:   nil,
-			Content: "",
-		}, nil
-	}
-
-	var allContent []string
-	for _, imageURL := range req.Images {
-		content, err := s.callArkOCR(ctx, imageURL, false)
-		if err != nil {
-			return nil, err
-		}
-		if content != "" {
-			allContent = append(allContent, content)
-		}
-	}
-
-	return &model.DefaultOcrResponse{
-		Title:   nil,
-		Content: strings.Join(allContent, "\n"),
-	}, nil
 }
 
 // ARK Title OCR实现

@@ -86,15 +86,11 @@ func setupRouter(evaluateHandler *handler.EvaluateHandler, ocrHandler *handler.O
 
 	v1 := router.Group("/evaluate")
 	{
-		v1.POST("", evaluateHandler.Evaluate)
-		v1.POST("/ocr", evaluateHandler.OcrEvaluate)
 		v1.POST("/stream", evaluateHandler.EvaluateStream)
-		v1.POST("/ocr/stream", evaluateHandler.OcrEvaluateStream)
 	}
 
 	sts := router.Group("/sts")
 	{
-		sts.POST("/ocr/:provider/:imgType", ocrHandler.DefaultOcr)
 		sts.POST("/ocr/title/:provider/:imgType", ocrHandler.TitleOcr)
 	}
 

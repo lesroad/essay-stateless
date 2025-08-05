@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"time"
 
@@ -26,36 +25,6 @@ func NewEvaluateHandler(service service.EvaluateService, rawLogsRepo repository.
 		rawLogsRepo:    rawLogsRepo,
 		billingService: billingService,
 	}
-}
-
-func (h *EvaluateHandler) Evaluate(c *gin.Context) {
-	var req model.EvaluateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, model.NewErrorResponse(400, err.Error()))
-		return
-	}
-
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		userID = "anonymous"
-	}
-
-	response, err := h.service.Evaluate(c.Request.Context(), &req)
-	if err != nil {
-		logrus.WithError(err).Error("Failed to evaluate essay")
-		c.JSON(http.StatusInternalServerError, model.NewErrorResponse(500, "Internal server error"))
-		return
-	}
-
-	go func() {
-		if err := h.billingService.TrackUsage(c.Request.Context(), userID, "essay_evaluate", 1); err != nil {
-			logrus.WithError(err).Error("Failed to track usage for essay evaluation")
-		}
-	}()
-
-	go h.saveRawLog("/evaluate", req.JSONString(), response.JSONString())
-
-	c.JSON(http.StatusOK, model.NewSuccessResponse(response))
 }
 
 // EvaluateStream SSE流式批改接口
@@ -161,113 +130,6 @@ func (h *EvaluateHandler) EvaluateStream(c *gin.Context) {
 			}
 		}
 	}
-}
-
-func (h *EvaluateHandler) OcrEvaluate(c *gin.Context) {
-	var req model.OcrEvaluateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, model.NewErrorResponse(400, err.Error()))
-		return
-	}
-
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		userID = "anonymous"
-	}
-
-	response, err := h.service.OcrEvaluate(c.Request.Context(), &req)
-	if err != nil {
-		logrus.WithError(err).Error("Failed to evaluate OCR essay")
-		c.JSON(http.StatusInternalServerError, model.NewErrorResponse(500, "Internal server error"))
-		return
-	}
-
-	go func() {
-		if err := h.billingService.TrackUsage(c.Request.Context(), userID, "ocr_essay_evaluate", 1); err != nil {
-			logrus.WithError(err).Error("Failed to track usage for OCR essay evaluation")
-		}
-	}()
-
-	go h.saveRawLog("/evaluate/ocr", req.JSONString(), response.JSONString())
-
-	c.JSON(http.StatusOK, model.NewSuccessResponse(response))
-}
-
-// OcrEvaluateStream SSE流式OCR批改接口
-func (h *EvaluateHandler) OcrEvaluateStream(c *gin.Context) {
-	var req model.OcrEvaluateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, model.NewErrorResponse(400, err.Error()))
-		return
-	}
-
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		userID = "anonymous"
-	}
-
-	// 设置SSE响应头
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
-	c.Header("Access-Control-Allow-Origin", "*")
-	c.Header("Access-Control-Allow-Headers", "Cache-Control")
-
-	// 创建响应通道
-	ch := make(chan *model.StreamEvaluateResponse, 10)
-
-	// 启动流式OCR评估
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logrus.WithField("panic", r).Error("Panic in OCR stream evaluation")
-				ch <- &model.StreamEvaluateResponse{
-					Type:      "error",
-					Step:      "panic",
-					Message:   "服务内部错误",
-					Data:      &model.StreamErrorData{Error: "internal error", Step: "panic"},
-					Timestamp: time.Now().Unix(),
-				}
-				close(ch)
-			}
-		}()
-
-		if err := h.service.OcrEvaluateStream(c.Request.Context(), &req, ch); err != nil {
-			logrus.WithError(err).Error("Failed to stream evaluate OCR essay")
-		}
-
-		// 跟踪使用量
-		if err := h.billingService.TrackUsage(c.Request.Context(), userID, "ocr_essay_evaluate_stream", 1); err != nil {
-			logrus.WithError(err).Error("Failed to track usage for OCR stream essay evaluation")
-		}
-	}()
-
-	// 发送SSE数据
-	c.Stream(func(w io.Writer) bool {
-		select {
-		case <-c.Request.Context().Done():
-			return false
-		case msg, ok := <-ch:
-			if !ok {
-				return false
-			}
-
-			data, err := msg.JSONString()
-			if err != nil {
-				logrus.WithError(err).Error("Failed to marshal stream response")
-				return false
-			}
-
-			c.SSEvent("message", data)
-
-			// 记录日志（仅完成时）
-			if msg.Type == "complete" {
-				go h.saveRawLog("/evaluate/ocr/stream", req.JSONString(), data)
-			}
-
-			return msg.Type != "complete" && msg.Type != "error"
-		}
-	})
 }
 
 func (h *EvaluateHandler) saveRawLog(url, request, response string) {

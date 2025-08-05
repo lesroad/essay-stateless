@@ -25,34 +25,6 @@ func NewOcrHandler(service service.OcrService, rawLogsRepo repository.RawLogsRep
 	}
 }
 
-// DefaultOcr 默认OCR识别
-// @param provider OCR的提供者, textin or bee
-// @param imgType  OCR识别类型, url or base64
-// @param req      OCR识别请求
-// @return OCR 识别结果
-func (h *OcrHandler) DefaultOcr(c *gin.Context) {
-	provider := c.Param("provider")
-	imgType := c.Param("imgType")
-
-	var req model.DefaultOcrRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, model.NewErrorResponse(400, err.Error()))
-		return
-	}
-
-	response, err := h.service.DefaultOcr(c.Request.Context(), provider, imgType, &req)
-	if err != nil {
-		logrus.WithError(err).Error("Failed to perform default OCR")
-		c.JSON(http.StatusInternalServerError, model.NewErrorResponse(500, "Internal server error"))
-		return
-	}
-
-	// 记录日志
-	go h.saveRawLog("/sts/ocr/"+provider+"/"+imgType, req.JSONString(), response)
-
-	c.JSON(http.StatusOK, model.NewSuccessResponse(response))
-}
-
 // TitleOcr 带标题OCR识别
 // @param provider OCR的提供者, textin or bee
 // @param imgType  OCR识别类型, url or base64

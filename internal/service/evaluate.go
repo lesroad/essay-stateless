@@ -2,12 +2,18 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"essay-stateless/internal/config"
 	"essay-stateless/internal/model"
 	"essay-stateless/pkg/httpclient"
-	"sync"
+	"fmt"
+	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/jinzhu/copier"
+	"github.com/samber/lo"
+	"github.com/sirupsen/logrus"
 )
 
 // EvaluateStep 评估步骤定义
@@ -26,10 +32,7 @@ type EvaluateResult struct {
 }
 
 type EvaluateService interface {
-	Evaluate(ctx context.Context, req *model.EvaluateRequest) (*model.EvaluateResponse, error)
-	OcrEvaluate(ctx context.Context, req *model.OcrEvaluateRequest) (*model.EvaluateResponse, error)
 	EvaluateStream(ctx context.Context, req *model.EvaluateRequest, ch chan<- *model.StreamEvaluateResponse) error // 单向发送通道
-	OcrEvaluateStream(ctx context.Context, req *model.OcrEvaluateRequest, ch chan<- *model.StreamEvaluateResponse) error
 }
 
 type evaluateService struct {
@@ -44,168 +47,6 @@ func NewEvaluateService(config *config.EvaluateConfig, ocrService OcrService) Ev
 		httpClient: httpclient.New(),
 		ocrService: ocrService,
 	}
-}
-
-func (s *evaluateService) Evaluate(ctx context.Context, req *model.EvaluateRequest) (*model.EvaluateResponse, error) {
-	essay := map[string]interface{}{
-		"title": req.Title,
-		"essay": req.Content,
-	}
-
-	var essayInfo APIEssayInfo
-	if err := s.httpClient.Post(ctx, s.config.API.EssayInfo, essay, &essayInfo); err != nil {
-		return nil, err
-	}
-
-	if req.Grade != nil {
-		essayInfo.Grade = *req.Grade
-	}
-	if req.EssayType != nil {
-		essayInfo.EssayType = *req.EssayType
-	}
-
-	essay["grade"] = essayInfo.Grade
-	essay["type"] = essayInfo.EssayType
-
-	response := &model.EvaluateResponse{}
-	response.Title = req.Title
-	response.Text = essayInfo.Sents
-	response.EssayInfo = model.EssayInfo{
-		EssayType: essayInfo.EssayType,
-		Grade:     essayInfo.Grade,
-		Counting: model.Counting{
-			AdjAdvNum:         essayInfo.Counting.AdjAdvNum,
-			CharNum:           essayInfo.Counting.CharNum,
-			DieciNum:          essayInfo.Counting.DieciNum,
-			Fluency:           essayInfo.Counting.Fluency,
-			GrammarMistakeNum: essayInfo.Counting.GrammarMistakeNum,
-			HighlightSentsNum: essayInfo.Counting.HighlightSentsNum,
-			IdiomNum:          essayInfo.Counting.IdiomNum,
-			NounTypeNum:       essayInfo.Counting.NounTypeNum,
-			ParaNum:           essayInfo.Counting.ParaNum,
-			SentNum:           essayInfo.Counting.SentNum,
-			UniqueWordNum:     essayInfo.Counting.UniqueWordNum,
-			VerbTypeNum:       essayInfo.Counting.VerbTypeNum,
-			WordNum:           essayInfo.Counting.WordNum,
-			WrittenMistakeNum: essayInfo.Counting.WrittenMistakeNum,
-		},
-	}
-
-	response.AIEvaluation = model.AIEvaluation{
-		ModelVersion: model.ModelVersion{
-			Name:    s.config.ModelVersion.Name,
-			Version: s.config.ModelVersion.Version,
-		},
-		OverallEvaluation:      model.OverallEvaluation{},
-		FluencyEvaluation:      model.FluencyEvaluation{},
-		WordSentenceEvaluation: model.WordSentenceEvaluation{},
-		ExpressionEvaluation:   model.ExpressionEvaluation{},
-		SuggestionEvaluation:   model.SuggestionEvaluation{},
-		ParagraphEvaluations:   []model.ParagraphEvaluation{},
-		ScoreEvaluation:        model.ScoreEvaluation{},
-	}
-
-	return s.processAPIResponses(ctx, essay, response)
-}
-
-func (s *evaluateService) OcrEvaluate(ctx context.Context, req *model.OcrEvaluateRequest) (*model.EvaluateResponse, error) {
-	provider := "bee"
-	if req.Provider != nil {
-		provider = *req.Provider
-	}
-
-	imageType := "url"
-	if req.ImageType != nil {
-		imageType = *req.ImageType
-	}
-
-	ocrReq := &model.TitleOcrRequest{
-		Images:   req.Images,
-		LeftType: &req.LeftType,
-	}
-
-	ocrResp, err := s.ocrService.TitleOcr(ctx, provider, imageType, ocrReq)
-	if err != nil {
-		return nil, err
-	}
-
-	evaluateReq := &model.EvaluateRequest{
-		Title:     ocrResp.Title,
-		Content:   ocrResp.Content,
-		Grade:     req.Grade,
-		EssayType: req.EssayType,
-	}
-
-	return s.Evaluate(ctx, evaluateReq)
-}
-
-func (s *evaluateService) processAPIResponses(ctx context.Context, essay map[string]interface{}, response *model.EvaluateResponse) (*model.EvaluateResponse, error) {
-	var wg sync.WaitGroup
-	wg.Add(8)
-
-	var overall *APIOverall           // 总评
-	var fluency *APIFluency           // 流畅度评语
-	var wordSentence *APIWordSentence // 好词好句
-	var grammarInfo *APIGrammarInfo   // 语法错误识别
-	var expression *APIExpression     // 逻辑表达评语
-	var suggestion *APISuggestion     // 修改建议评语
-	var paragraph *APIParagraph       // 段落点评
-	var score *APIScore               // 分数
-
-	// 异步调用所有API
-	go func() {
-		defer wg.Done()
-		s.httpClient.Post(ctx, s.config.API.Overall, essay, &overall)
-	}()
-
-	go func() {
-		defer wg.Done()
-		s.httpClient.Post(ctx, s.config.API.Fluency, essay, &fluency)
-	}()
-
-	go func() {
-		defer wg.Done()
-		s.httpClient.Post(ctx, s.config.API.WordSentence, essay, &wordSentence)
-	}()
-
-	go func() {
-		defer wg.Done()
-		s.httpClient.Post(ctx, s.config.API.GrammarInfo, essay, &grammarInfo)
-	}()
-
-	go func() {
-		defer wg.Done()
-		s.httpClient.Post(ctx, s.config.API.Expression, essay, &expression)
-	}()
-
-	go func() {
-		defer wg.Done()
-		s.httpClient.Post(ctx, s.config.API.Suggestion, essay, &suggestion)
-	}()
-
-	go func() {
-		defer wg.Done()
-		s.httpClient.Post(ctx, s.config.API.Paragraph, essay, &paragraph)
-	}()
-
-	go func() {
-		defer wg.Done()
-		essay["type"] = "essay"
-		s.httpClient.Post(ctx, s.config.API.Score, essay, &score)
-	}()
-
-	wg.Wait()
-
-	s.processWordSentence(wordSentence, response)
-	s.processGrammarInfo(grammarInfo, response)
-	s.processFluency(fluency, response)
-	s.processParagraph(paragraph, response)
-	s.processExpression(expression, response)
-	s.processOverall(overall, response)
-	s.processSuggestion(suggestion, response)
-	s.processScore(score, response)
-
-	return response, nil
 }
 
 func (s *evaluateService) processWordSentence(wordSentence *APIWordSentence, response *model.EvaluateResponse) {
@@ -370,7 +211,7 @@ func (s *evaluateService) processOverall(overall *APIOverall, response *model.Ev
 	}
 }
 
-func (s *evaluateService) processScore(score *APIScore, response *model.EvaluateResponse) {
+func (s *evaluateService) processScore(score *model.APIScore, response *model.EvaluateResponse) {
 	if score != nil {
 		response.AIEvaluation.ScoreEvaluation.Comment = score.Result.Comment
 		response.AIEvaluation.ScoreEvaluation.Comments.Appearance = score.Result.Comments.Appearance
@@ -568,33 +409,113 @@ type APIParagraph struct {
 	Message  string   `json:"message"`
 }
 
-type APIScore struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-	Result  struct {
-		Comment  string `json:"comment"`
-		Comments struct {
-			Appearance  string `json:"appearance"`
-			Content     string `json:"content"`
-			Expression  string `json:"expression"`
-			Structure   string `json:"structure"`
-			Development string `json:"development"`
-		} `json:"comments"`
-		Scores struct {
-			All         int `json:"all"`
-			Appearance  int `json:"appearance"`
-			Content     int `json:"content"`
-			Expression  int `json:"expression"`
-			Structure   int `json:"structure"`
-			Development int `json:"development"`
-		} `json:"scores"`
-	} `json:"result"`
+/*
+	{
+	    "type": "content",
+	    "content": [
+	        {
+	            "original_sentence": "我的心爱之物是一个小娃娃，那是我爸爸出差的时候给我带的礼物。",
+	            "edits": [
+	                {
+	                    "op": "replace",
+	                    "original": "一个小娃娃",
+	                    "replacement": "一尊绒布小娃娃",
+	                    "reason": "增加材质描写“绒布”，使小娃娃的形象更具体可感"
+	                },
+	                {
+	                    "op": "insert",
+	                    "position_after": "出差的时候",
+	                    "text": "特意",
+	                    "reason": "“特意”一词体现了爸爸对“我”的用心，暗含情感温度，让礼物更显珍贵"
+	                }
+	            ]
+	        },
+	        {
+	            "original_sentence": "她已经陪伴我5年半了。",
+	            "edits": [
+	                {
+	                    "op": "insert",
+	                    "position_after": "陪伴我",
+	                    "text": "整整",
+	                    "reason": "“整整”强调了时间的长久，突出小娃娃陪伴“我”的时间跨度，情感更浓厚"
+	                }
+	            ]
+	        },
+	        {
+	            "original_sentence": "那她为什么是我的心爱之物呢？",
+	            "edits": [
+	                {
+	                    "op": "replace",
+	                    "original": "那她为什么是我的心爱之物呢？",
+	                    "replacement": "你猜，她为什么能成为我的心爱之物呢？",
+	                    "reason": "运用设问和第二人称“你”，拉近与读者的距离，引发阅读兴趣，使开头更活泼自然"
+	                }
+	            ]
+	        }
+	    ]
+	}
+*/
+
+// 润色点评
+func (s *evaluateService) processPolishing(polishing model.APIPolishingContent, response *model.EvaluateResponse) error {
+	var paragraphEval model.PolishingEvaluation
+	pIndex := polishing.ParagraphIdx
+	paragraphEval.ParagraphIndex = pIndex
+
+	for _, sentence := range polishing.Content {
+		for _, edit := range sentence.Edits {
+			pe := new(model.PolishingEdit)
+			if err := copier.Copy(pe, edit); err != nil {
+				logrus.Errorf("copy polishing edit failed, err:%v", err)
+				continue
+			}
+			_, pe.SentenceIndex, _ = lo.FindIndexOf(response.Text[pIndex], func(row string) bool {
+				return strings.Contains(row, sentence.OriginalSentence)
+			})
+			if pe.SentenceIndex == -1 {
+				logrus.Errorf("original未找到:%s, row:%+v, pIndex:%v", sentence.OriginalSentence, response.Text[pIndex], pIndex)
+				continue
+			}
+
+			switch edit.Op {
+			case "insert":
+				pe.Original = edit.PositionAfter
+				pe.Revised = edit.Text
+			case "replace", "delete":
+				pe.Original = edit.Original
+				pe.Revised = edit.Replacement
+			default:
+				logrus.Errorf("未知操作类型, edit:%+v", edit)
+				continue
+			}
+
+			if pIndex > len(response.Text) || pe.SentenceIndex > len(response.Text[pIndex]) || pIndex < 0 || pe.SentenceIndex < 0 {
+				logrus.Errorf("出界啦!!!! pIndex:%v, pe.SentenceIndex:%v", pIndex, pe.SentenceIndex)
+				continue
+			}
+			originSentence := response.Text[pIndex][pe.SentenceIndex]
+
+			index := strings.Index(originSentence, pe.Original)
+			if index == -1 {
+				logrus.Errorf("原句未找到:%s, row:%+v, originSentence:%v", pe.Original, response.Text[pIndex], originSentence)
+				continue
+			}
+			beg := utf8.RuneCountInString(originSentence[:strings.Index(originSentence, pe.Original)])
+
+			pe.Span = []int{beg + 1, beg + utf8.RuneCountInString(pe.Original)}
+
+			paragraphEval.Edits = append(paragraphEval.Edits, *pe)
+		}
+	}
+
+	response.AIEvaluation.PolishingEvaluation = append(response.AIEvaluation.PolishingEvaluation, paragraphEval)
+
+	return nil
 }
 
 // EvaluateStream 流式批改评估
 func (s *evaluateService) EvaluateStream(ctx context.Context, req *model.EvaluateRequest, ch chan<- *model.StreamEvaluateResponse) error {
 	defer close(ch)
-
 	// 发送初始化消息
 	ch <- &model.StreamEvaluateResponse{
 		Type:      "init",
@@ -669,6 +590,7 @@ func (s *evaluateService) EvaluateStream(ctx context.Context, req *model.Evaluat
 		SuggestionEvaluation:   model.SuggestionEvaluation{},
 		ParagraphEvaluations:   []model.ParagraphEvaluation{},
 		ScoreEvaluation:        model.ScoreEvaluation{},
+		PolishingEvaluation:    []model.PolishingEvaluation{},
 	}
 
 	// 发送初始化完成消息
@@ -681,68 +603,10 @@ func (s *evaluateService) EvaluateStream(ctx context.Context, req *model.Evaluat
 		Timestamp: time.Now().Unix(),
 	}
 
+	logrus.Infof("作文详情：%+v", response.Text)
+
 	// 并发调用各种评估API，但逐步返回结果
 	return s.processAPIResponsesStream(ctx, essay, response, ch)
-}
-
-// OcrEvaluateStream OCR流式批改评估
-func (s *evaluateService) OcrEvaluateStream(ctx context.Context, req *model.OcrEvaluateRequest, ch chan<- *model.StreamEvaluateResponse) error {
-	defer close(ch)
-
-	// 发送初始化消息
-	ch <- &model.StreamEvaluateResponse{
-		Type:      "init",
-		Step:      "ocr",
-		Progress:  0,
-		Message:   "开始OCR识别",
-		Timestamp: time.Now().Unix(),
-	}
-
-	provider := "bee"
-	if req.Provider != nil {
-		provider = *req.Provider
-	}
-
-	imageType := "url"
-	if req.ImageType != nil {
-		imageType = *req.ImageType
-	}
-
-	ocrReq := &model.TitleOcrRequest{
-		Images:   req.Images,
-		LeftType: &req.LeftType,
-	}
-
-	ocrResp, err := s.ocrService.TitleOcr(ctx, provider, imageType, ocrReq)
-	if err != nil {
-		ch <- &model.StreamEvaluateResponse{
-			Type:      "error",
-			Step:      "ocr",
-			Message:   "OCR识别失败",
-			Data:      &model.StreamErrorData{Error: err.Error(), Step: "ocr"},
-			Timestamp: time.Now().Unix(),
-		}
-		return err
-	}
-
-	// 发送OCR完成消息
-	ch <- &model.StreamEvaluateResponse{
-		Type:      "progress",
-		Step:      "ocr",
-		Progress:  10,
-		Message:   "OCR识别完成",
-		Data:      &model.StreamStepData{Step: "ocr", Data: ocrResp},
-		Timestamp: time.Now().Unix(),
-	}
-
-	evaluateReq := &model.EvaluateRequest{
-		Title:     ocrResp.Title,
-		Content:   ocrResp.Content,
-		Grade:     req.Grade,
-		EssayType: req.EssayType,
-	}
-
-	return s.EvaluateStream(ctx, evaluateReq, ch)
 }
 
 // 流式处理API响应
@@ -757,6 +621,7 @@ func (s *evaluateService) processAPIResponsesStream(ctx context.Context, essay m
 		{"suggestion", s.config.API.Suggestion, "修改建议完成"},
 		{"paragraph", s.config.API.Paragraph, "段落点评完成"},
 		{"score", s.config.API.Score, "打分完成"},
+		{"polishing", s.config.API.Polishing, "作文润色完成"},
 	}
 
 	// 初始化好词好句评估结果
@@ -849,7 +714,7 @@ func (s *evaluateService) processAPIResponsesStream(ctx context.Context, essay m
 				}
 
 			case "score":
-				var score *APIScore
+				var score *model.APIScore
 				scoreEssay := essay
 				scoreEssay["prompt"] = ""
 				scoreEssay["image"] = ""
@@ -859,36 +724,88 @@ func (s *evaluateService) processAPIResponsesStream(ctx context.Context, essay m
 					s.processScore(score, response)
 					result = model.AIEvaluation{ScoreEvaluation: response.AIEvaluation.ScoreEvaluation}
 				}
+
+			case "polishing":
+				var subResultCh = make(chan string)
+				var streamErr error
+				var processedAny bool
+
+				// 使用一个错误通道来传播 goroutine 中的错误
+				errCh := make(chan error, 1)
+
+				go func() {
+					defer close(subResultCh)
+					defer close(errCh)
+					if streamErr := s.httpClient.PostWithStream(ctx, step.URL, nil, essay, subResultCh); streamErr != nil {
+						logrus.WithError(streamErr).Error("润色API调用失败")
+						errCh <- streamErr
+					}
+				}()
+
+				// 使用 select 来同时监听数据和错误
+				for {
+					select {
+					case content, ok := <-subResultCh:
+						if !ok {
+							// channel 已关闭，检查是否有错误
+							select {
+							case streamErr = <-errCh:
+								// 有错误
+							default:
+								// 没有错误，正常结束
+							}
+							goto polishingDone
+						}
+
+						polishing := model.APIPolishingContent{}
+						if parseErr := json.Unmarshal([]byte(content), &polishing); parseErr != nil {
+							logrus.WithError(parseErr).WithField("content", content).Error("解析润色内容失败")
+							continue
+						}
+
+						if processErr := s.processPolishing(polishing, response); processErr != nil {
+							logrus.WithError(processErr).Error("处理润色内容失败")
+							continue
+						}
+
+						processedAny = true
+
+					case streamErr = <-errCh:
+						// 收到错误，退出循环
+						goto polishingDone
+
+					case <-ctx.Done():
+						// 上下文取消
+						streamErr = ctx.Err()
+						goto polishingDone
+					}
+				}
+
+			polishingDone:
+				// 如果没有处理任何内容且没有明确的错误，这也是一个问题
+				if !processedAny && streamErr == nil {
+					streamErr = fmt.Errorf("润色API没有返回任何内容")
+				}
+
+				result = model.AIEvaluation{PolishingEvaluation: response.AIEvaluation.PolishingEvaluation}
+				err = streamErr
 			}
 
 			resultCh <- EvaluateResult{Step: step.Name, Message: step.Message, Data: result, Err: err}
 		}(step)
 	}
 
-	// 收集所有结果并发送到输出通道
 	for range steps {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case result := <-resultCh:
-			if result.Err != nil {
-				// 发送错误消息
-				ch <- &model.StreamEvaluateResponse{
-					Type:      "error",
-					Step:      result.Step,
-					Message:   getErrorMessage(result.Step),
-					Data:      &model.StreamErrorData{Error: result.Err.Error(), Step: result.Step},
-					Timestamp: time.Now().Unix(),
-				}
-			} else {
-				// 发送进度消息
-				ch <- &model.StreamEvaluateResponse{
-					Type:      "progress",
-					Step:      result.Step,
-					Message:   result.Message,
-					Data:      result.Data,
-					Timestamp: time.Now().Unix(),
-				}
+		result := <-resultCh
+		if result.Err != nil {
+			logrus.Errorf("评估步骤 %s 失败: %v", result.Step, result.Err)
+		} else {
+			ch <- &model.StreamEvaluateResponse{
+				Type:      "progress",
+				Step:      result.Step,
+				Message:   result.Message,
+				Data:      result.Data,
+				Timestamp: time.Now().Unix(),
 			}
 		}
 	}
@@ -904,19 +821,4 @@ func (s *evaluateService) processAPIResponsesStream(ctx context.Context, essay m
 	}
 
 	return nil
-}
-
-// 获取错误消息的辅助函数
-func getErrorMessage(step string) string {
-	messages := map[string]string{
-		"word_sentence": "好词好句分析失败",
-		"grammar":       "语法检查失败",
-		"fluency":       "流畅度评估失败",
-		"overall":       "总体评价失败",
-		"expression":    "表达评价失败",
-		"suggestion":    "修改建议失败",
-		"paragraph":     "段落点评失败",
-		"score":         "打分失败",
-	}
-	return messages[step]
 }
