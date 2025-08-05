@@ -2,20 +2,20 @@ package main
 
 import (
 	"context"
+	"essay-stateless/internal/config"
+	"essay-stateless/internal/handler"
+	"essay-stateless/internal/middleware"
+	"essay-stateless/internal/repository"
+	"essay-stateless/internal/service"
+	"essay-stateless/pkg/database"
+	"essay-stateless/pkg/logger"
+	"essay-stateless/pkg/trace"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"essay-stateless/internal/config"
-	"essay-stateless/internal/handler"
-	"essay-stateless/internal/repository"
-	"essay-stateless/internal/service"
-	"essay-stateless/pkg/database"
-	"essay-stateless/pkg/logger"
-	"essay-stateless/pkg/trace"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -42,12 +42,14 @@ func main() {
 	rawLogsRepo := repository.NewRawLogsRepository(db.Database())
 
 	ocrService := service.NewOcrService(&cfg.OCR)
-	evaluateService := service.NewEvaluateService(&cfg.Beta, ocrService)
+	evaluateService := service.NewEvaluateService(&cfg.Evaluate, ocrService)
+	billingService := service.NewBillingService(&cfg.Lago)
 
-	evaluateHandler := handler.NewEvaluateHandler(evaluateService, rawLogsRepo)
+	evaluateHandler := handler.NewEvaluateHandler(evaluateService, rawLogsRepo, billingService)
 	ocrHandler := handler.NewOcrHandler(ocrService, rawLogsRepo)
+	billingHandler := handler.NewBillingHandler(billingService)
 
-	router := setupRouter(evaluateHandler, ocrHandler)
+	router := setupRouter(evaluateHandler, ocrHandler, billingHandler)
 
 	server := &http.Server{
 		Addr:    cfg.Server.Port,
@@ -74,23 +76,29 @@ func main() {
 	log.Println("Server exited")
 }
 
-func setupRouter(evaluateHandler *handler.EvaluateHandler, ocrHandler *handler.OcrHandler) *gin.Engine {
+func setupRouter(evaluateHandler *handler.EvaluateHandler, ocrHandler *handler.OcrHandler, billingHandler *handler.BillingHandler) *gin.Engine {
 	router := gin.New()
 
 	router.Use(gin.Recovery())
 	router.Use(otelgin.Middleware("essay-stateless"))
 	router.Use(trace.TraceIDMiddleware())
+	router.Use(middleware.RequestLoggerMiddleware())
 
 	v1 := router.Group("/evaluate")
 	{
-		v1.POST("", evaluateHandler.BetaEvaluate)
-		v1.POST("/beta/ocr", evaluateHandler.BetaOcrEvaluate)
+		v1.POST("/stream", evaluateHandler.EvaluateStream)
 	}
 
 	sts := router.Group("/sts")
 	{
-		sts.POST("/ocr/:provider/:imgType", ocrHandler.DefaultOcr)
 		sts.POST("/ocr/title/:provider/:imgType", ocrHandler.TitleOcr)
+	}
+
+	billing := router.Group("/billing")
+	{
+		billing.POST("/customer", billingHandler.CreateCustomer)
+		billing.GET("/usage/:user_id", billingHandler.GetUsage)
+		billing.POST("/track", billingHandler.TrackUsage)
 	}
 
 	return router
