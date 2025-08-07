@@ -469,6 +469,12 @@ func (s *evaluateService) processPolishing(polishing model.APIPolishingContent, 
 				logrus.Errorf("copy polishing edit failed, err:%v", err)
 				continue
 			}
+
+			if pIndex >= len(response.Text) || pIndex < 0 {
+				logrus.Errorf("出界啦!!!! pIndex:%v", pIndex)
+				continue
+			}
+
 			_, pe.SentenceIndex, _ = lo.FindIndexOf(response.Text[pIndex], func(row string) bool {
 				return strings.Contains(row, sentence.OriginalSentence)
 			})
@@ -489,10 +495,11 @@ func (s *evaluateService) processPolishing(polishing model.APIPolishingContent, 
 				continue
 			}
 
-			if pIndex > len(response.Text) || pe.SentenceIndex > len(response.Text[pIndex]) || pIndex < 0 || pe.SentenceIndex < 0 {
+			if pe.SentenceIndex >= len(response.Text[pIndex]) || pe.SentenceIndex < 0 {
 				logrus.Errorf("出界啦!!!! pIndex:%v, pe.SentenceIndex:%v", pIndex, pe.SentenceIndex)
 				continue
 			}
+
 			originSentence := response.Text[pIndex][pe.SentenceIndex]
 
 			index := strings.Index(originSentence, pe.Original)
