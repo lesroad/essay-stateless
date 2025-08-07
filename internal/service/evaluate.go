@@ -7,6 +7,7 @@ import (
 	"essay-stateless/internal/model"
 	"essay-stateless/pkg/httpclient"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -532,6 +533,10 @@ func (s *evaluateService) EvaluateStream(ctx context.Context, req *model.Evaluat
 		Timestamp: time.Now().Unix(),
 	}
 
+	// 0. 调整作文格式，去除多余\n和非正常作文标点的特殊符号
+	req.Content = cleanContent(req.Content)
+	logrus.Infof("调整后作文：%s", req.Content)
+
 	// 1. 获取作文基本信息
 	essay := map[string]interface{}{
 		"title": req.Title,
@@ -828,4 +833,48 @@ func (s *evaluateService) processAPIResponsesStream(ctx context.Context, essay m
 	}
 
 	return nil
+}
+
+// cleanContent 清理作文内容中的多余换行符和特殊符号
+func cleanContent(content string) string {
+	if content == "" {
+		return content
+	}
+
+	// 1. 使用正则表达式将连续的多个\n替换为单个\n
+	re := regexp.MustCompile(`\n+`)
+	content = re.ReplaceAllString(content, "\n")
+
+	// 2. 去除开头和结尾的换行符
+	content = strings.Trim(content, "\n")
+
+	// 3. 清理非正常作文标点的特殊符号
+	// 保留正常的中文标点符号：。，！？；：""''（）【】《》、
+	// 保留正常的英文标点符号：.,!?;:"'()-
+	// 保留数字、中英文字母、空格、换行符
+
+	// 定义需要保留的字符模式
+	// \p{Han}: 中文字符
+	// a-zA-Z0-9: 英文字母和数字
+	// \s: 空白字符（包括空格、换行等）
+	// 中文标点：。，！？；：""''（）【】《》、
+	// 英文标点：.,!?;:"'()-
+	validChars := regexp.MustCompile(`[^\p{Han}a-zA-Z0-9\s。，！？；：""''（）【】《》、.,!?;:"'()\-]`)
+	content = validChars.ReplaceAllString(content, "")
+
+	// 4. 清理多余的空格（连续多个空格替换为单个空格）
+	spaceRe := regexp.MustCompile(`[ \t]+`)
+	content = spaceRe.ReplaceAllString(content, " ")
+
+	// 5. 去除行首行尾的空格
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimSpace(line)
+	}
+	content = strings.Join(lines, "\n")
+
+	// 6. 再次去除开头和结尾的换行符（防止清理后产生的多余换行）
+	content = strings.Trim(content, "\n")
+
+	return content
 }
