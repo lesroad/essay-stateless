@@ -41,6 +41,7 @@ type EssayInfo struct {
 	EssayType string   `json:"essayType"`
 	Grade     int      `json:"grade"`
 	Counting  Counting `json:"counting"`
+	AllScore  int64    `json:"score"`
 }
 
 type Counting struct {
@@ -218,12 +219,13 @@ type Comments struct {
 }
 
 type Scores struct {
-	All         int `json:"all"`
-	Appearance  int `json:"appearance"`
-	Content     int `json:"content"`
-	Expression  int `json:"expression"`
-	Structure   int `json:"structure,omitempty"`
-	Development int `json:"development,omitempty"`
+	All         int64 `json:"all"`
+	Appearance  int64 `json:"appearance"`
+	Content     int64 `json:"content"`
+	Expression  int64 `json:"expression"`
+	Structure   int64 `json:"structure,omitempty"`
+	Development int64 `json:"development,omitempty"`
+	ItemTotal   int64 `json:"itemTotal"`
 }
 
 type PolishingEvaluation struct {
@@ -280,7 +282,7 @@ type StreamEvaluateResponse struct {
 type StreamInitData struct {
 	Title     string     `json:"title"`
 	Text      [][]string `json:"text"`
-	EssayInfo EssayInfo  `json:"essay_info"`
+	EssayInfo EssayInfo  `json:"essay_info"` // 这里要改下todo
 }
 
 // StreamStepData 步骤完成数据

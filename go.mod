@@ -9,6 +9,7 @@ require (
 	github.com/jinzhu/copier v0.4.0
 	github.com/samber/lo v1.51.0
 	github.com/sashabaranov/go-openai v1.40.2
+	github.com/shopspring/decimal v1.4.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.17.0
 	go.mongodb.org/mongo-driver v1.12.1

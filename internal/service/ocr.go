@@ -72,7 +72,7 @@ func (s *ocrService) beeTitleOcr(ctx context.Context, imageType string, req *mod
 
 	return &model.TitleOcrResponse{
 		Title:   title,
-		Content: content,
+		Content: cleanContent(content),
 	}, nil
 }
 
@@ -220,7 +220,7 @@ func (s *ocrService) arkTitleOcr(ctx context.Context, req *model.TitleOcrRequest
 
 	return &model.TitleOcrResponse{
 		Title:   title,
-		Content: content,
+		Content: cleanContent(content), // 清理特殊符号
 	}, nil
 }
 
