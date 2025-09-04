@@ -13,12 +13,12 @@ type APIScore struct {
 			Development string `json:"development"`
 		} `json:"comments"`
 		Scores struct {
-			All         int `json:"all"`
-			Appearance  int `json:"appearance"`
-			Content     int `json:"content"`
-			Expression  int `json:"expression"`
-			Structure   int `json:"structure"`
-			Development int `json:"development"`
+			All         int64 `json:"all"`
+			Appearance  int64 `json:"appearance"`
+			Content     int64 `json:"content"`
+			Expression  int64 `json:"expression"`
+			Structure   int64 `json:"structure"`
+			Development int64 `json:"development"`
 		} `json:"scores"`
 	} `json:"result"`
 }

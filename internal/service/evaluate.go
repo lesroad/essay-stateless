@@ -14,6 +14,7 @@ import (
 
 	"github.com/jinzhu/copier"
 	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
 	"github.com/sirupsen/logrus"
 )
 
@@ -214,6 +215,56 @@ func (s *evaluateService) processOverall(overall *APIOverall, response *model.Ev
 
 func (s *evaluateService) processScore(score *model.APIScore, response *model.EvaluateResponse) {
 	if score != nil {
+		// 分值转换
+		logrus.Infof("response.EssayInfo.AllScore:%v, score.Result.Scores:%+v", response.EssayInfo.AllScore, score.Result.Scores)
+		if response.EssayInfo.AllScore <= 0 {
+			response.EssayInfo.AllScore = 100
+		}
+
+		// 总分
+		score.Result.Scores.All = decimal.NewFromInt(score.Result.Scores.All).
+			Div(decimal.NewFromInt(90)).
+			Mul(decimal.NewFromInt(response.EssayInfo.AllScore)).
+			Round(0).
+			IntPart()
+
+		score.Result.Scores.Content = decimal.NewFromInt(score.Result.Scores.Content).
+			Div(decimal.NewFromInt(30)).
+			Mul(decimal.NewFromInt(response.EssayInfo.AllScore)).
+			Div(decimal.NewFromInt(3)).
+			Round(0).
+			IntPart()
+
+		score.Result.Scores.Expression = decimal.NewFromInt(score.Result.Scores.Expression).
+			Div(decimal.NewFromInt(30)).
+			Mul(decimal.NewFromInt(response.EssayInfo.AllScore)).
+			Div(decimal.NewFromInt(3)).
+			Round(0).
+			IntPart()
+
+		// Structure
+		score.Result.Scores.Structure = decimal.NewFromInt(score.Result.Scores.Structure).
+			Div(decimal.NewFromInt(30)).
+			Mul(decimal.NewFromInt(response.EssayInfo.AllScore)).
+			Div(decimal.NewFromInt(3)).
+			Round(0).
+			IntPart()
+
+		// Development
+		score.Result.Scores.Development = decimal.NewFromInt(score.Result.Scores.Development).
+			Div(decimal.NewFromInt(30)).
+			Mul(decimal.NewFromInt(response.EssayInfo.AllScore)).
+			Div(decimal.NewFromInt(3)).
+			Round(0).
+			IntPart()
+
+		// itemTotal各分项总分
+		itemTotal := decimal.NewFromInt(30).
+			Div(decimal.NewFromInt(100)).
+			Mul(decimal.NewFromInt(response.EssayInfo.AllScore)).
+			Round(0).
+			IntPart()
+
 		response.AIEvaluation.ScoreEvaluation.Comment = score.Result.Comment
 		response.AIEvaluation.ScoreEvaluation.Comments.Appearance = score.Result.Comments.Appearance
 		response.AIEvaluation.ScoreEvaluation.Comments.Content = score.Result.Comments.Content
@@ -221,6 +272,7 @@ func (s *evaluateService) processScore(score *model.APIScore, response *model.Ev
 		response.AIEvaluation.ScoreEvaluation.Comments.Structure = score.Result.Comments.Structure
 		response.AIEvaluation.ScoreEvaluation.Comments.Development = score.Result.Comments.Development
 		response.AIEvaluation.ScoreEvaluation.Scores.All = score.Result.Scores.All
+		response.AIEvaluation.ScoreEvaluation.Scores.ItemTotal = itemTotal
 		response.AIEvaluation.ScoreEvaluation.Scores.Appearance = score.Result.Scores.Appearance
 		response.AIEvaluation.ScoreEvaluation.Scores.Content = score.Result.Scores.Content
 		response.AIEvaluation.ScoreEvaluation.Scores.Expression = score.Result.Scores.Expression
@@ -234,6 +286,7 @@ type APIEssayInfo struct {
 	EssayType string           `json:"essay_type"`
 	Counting  APIEssayCounting `json:"counting"`
 	Sents     [][]string       `json:"sents"`
+	AllScore  int64            `json:"score_int"`
 	Code      string           `json:"code"`
 	Message   string           `json:"message"`
 }
@@ -561,6 +614,9 @@ func (s *evaluateService) EvaluateStream(ctx context.Context, req *model.Evaluat
 	if req.EssayType != nil {
 		essayInfo.EssayType = *req.EssayType
 	}
+	if req.TotalScore != nil {
+		essayInfo.AllScore = *req.TotalScore
+	}
 
 	essay["grade"] = essayInfo.Grade
 	essay["type"] = essayInfo.EssayType
@@ -588,6 +644,7 @@ func (s *evaluateService) EvaluateStream(ctx context.Context, req *model.Evaluat
 			WordNum:           essayInfo.Counting.WordNum,
 			WrittenMistakeNum: essayInfo.Counting.WrittenMistakeNum,
 		},
+		AllScore: essayInfo.AllScore,
 	}
 
 	response.AIEvaluation = model.AIEvaluation{
