@@ -225,7 +225,12 @@ type Scores struct {
 	Expression  int64 `json:"expression"`
 	Structure   int64 `json:"structure,omitempty"`
 	Development int64 `json:"development,omitempty"`
-	ItemTotal   int64 `json:"itemTotal"`
+	// 分项分数 / 总分
+	AllWithTotal         string `json:"allWithTotal"`
+	ContentWithTotal     string `json:"contentWithTotal"`
+	ExpressionWithTotal  string `json:"expressionWithTotal"`
+	StructureWithTotal   string `json:"structureWithTotal"`
+	DevelopmentWithTotal string `json:"developmentWithTotal"`
 }
 
 type PolishingEvaluation struct {
