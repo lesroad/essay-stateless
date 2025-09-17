@@ -221,50 +221,6 @@ func (s *evaluateService) processScore(score *model.APIScore, response *model.Ev
 			response.EssayInfo.AllScore = 100
 		}
 
-		// 总分
-		score.Result.Scores.All = decimal.NewFromInt(score.Result.Scores.All).
-			Div(decimal.NewFromInt(90)).
-			Mul(decimal.NewFromInt(response.EssayInfo.AllScore)).
-			Round(0).
-			IntPart()
-
-		score.Result.Scores.Content = decimal.NewFromInt(score.Result.Scores.Content).
-			Div(decimal.NewFromInt(30)).
-			Mul(decimal.NewFromInt(response.EssayInfo.AllScore)).
-			Div(decimal.NewFromInt(3)).
-			Round(0).
-			IntPart()
-
-		score.Result.Scores.Expression = decimal.NewFromInt(score.Result.Scores.Expression).
-			Div(decimal.NewFromInt(30)).
-			Mul(decimal.NewFromInt(response.EssayInfo.AllScore)).
-			Div(decimal.NewFromInt(3)).
-			Round(0).
-			IntPart()
-
-		// Structure
-		score.Result.Scores.Structure = decimal.NewFromInt(score.Result.Scores.Structure).
-			Div(decimal.NewFromInt(30)).
-			Mul(decimal.NewFromInt(response.EssayInfo.AllScore)).
-			Div(decimal.NewFromInt(3)).
-			Round(0).
-			IntPart()
-
-		// Development
-		score.Result.Scores.Development = decimal.NewFromInt(score.Result.Scores.Development).
-			Div(decimal.NewFromInt(30)).
-			Mul(decimal.NewFromInt(response.EssayInfo.AllScore)).
-			Div(decimal.NewFromInt(3)).
-			Round(0).
-			IntPart()
-
-		// itemTotal各分项总分
-		itemTotal := decimal.NewFromInt(30).
-			Div(decimal.NewFromInt(100)).
-			Mul(decimal.NewFromInt(response.EssayInfo.AllScore)).
-			Round(0).
-			IntPart()
-
 		response.AIEvaluation.ScoreEvaluation.Comment = score.Result.Comment
 		response.AIEvaluation.ScoreEvaluation.Comments.Appearance = score.Result.Comments.Appearance
 		response.AIEvaluation.ScoreEvaluation.Comments.Content = score.Result.Comments.Content
@@ -272,12 +228,35 @@ func (s *evaluateService) processScore(score *model.APIScore, response *model.Ev
 		response.AIEvaluation.ScoreEvaluation.Comments.Structure = score.Result.Comments.Structure
 		response.AIEvaluation.ScoreEvaluation.Comments.Development = score.Result.Comments.Development
 		response.AIEvaluation.ScoreEvaluation.Scores.All = score.Result.Scores.All
-		response.AIEvaluation.ScoreEvaluation.Scores.ItemTotal = itemTotal
 		response.AIEvaluation.ScoreEvaluation.Scores.Appearance = score.Result.Scores.Appearance
 		response.AIEvaluation.ScoreEvaluation.Scores.Content = score.Result.Scores.Content
 		response.AIEvaluation.ScoreEvaluation.Scores.Expression = score.Result.Scores.Expression
 		response.AIEvaluation.ScoreEvaluation.Scores.Structure = score.Result.Scores.Structure
 		response.AIEvaluation.ScoreEvaluation.Scores.Development = score.Result.Scores.Development
+
+		// 最终分数/总分
+		allScore := decimal.NewFromInt(score.Result.Scores.All).Div(decimal.NewFromInt(90)).Mul(decimal.NewFromInt(response.EssayInfo.AllScore)).Round(0).IntPart()
+		response.AIEvaluation.ScoreEvaluation.Scores.AllWithTotal = fmt.Sprintf("%d/%d", allScore, response.EssayInfo.AllScore)
+
+		// 内容分值/总分
+		contentAllScore := DivideAndRoundUp(response.EssayInfo.AllScore, 3)
+		contentScore := decimal.NewFromInt(score.Result.Scores.Content).Div(decimal.NewFromInt(30)).Mul(decimal.NewFromInt(contentAllScore)).Round(0).IntPart()
+		response.AIEvaluation.ScoreEvaluation.Scores.ContentWithTotal = fmt.Sprintf("%d/%d", contentScore, contentAllScore)
+
+		// 表达分值/总分
+		expressionAllScore := DivideAndRoundDown(response.EssayInfo.AllScore, 3)
+		expressionScore := decimal.NewFromInt(score.Result.Scores.Expression).Div(decimal.NewFromInt(30)).Mul(decimal.NewFromInt(expressionAllScore)).Round(0).IntPart()
+		response.AIEvaluation.ScoreEvaluation.Scores.ExpressionWithTotal = fmt.Sprintf("%d/%d", expressionScore, expressionAllScore)
+
+		// 结构分值/总分
+		structureAllScore := DivideAndRoundDown(response.EssayInfo.AllScore, 3)
+		structureScore := allScore - contentScore - expressionScore
+		response.AIEvaluation.ScoreEvaluation.Scores.StructureWithTotal = fmt.Sprintf("%d/%d", structureScore, structureAllScore)
+
+		// 发展分值/总分
+		developmentAllScore := DivideAndRoundDown(response.EssayInfo.AllScore, 3)
+		developmentScore := allScore - contentScore - expressionScore
+		response.AIEvaluation.ScoreEvaluation.Scores.DevelopmentWithTotal = fmt.Sprintf("%d/%d", developmentScore, developmentAllScore)
 	}
 }
 
