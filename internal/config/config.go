@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-//go:embed config.local.yaml
+// //go:embed config.local.yaml
 var configData []byte
 
 type Config struct {
