@@ -248,15 +248,17 @@ func (s *evaluateService) processScore(score *model.APIScore, response *model.Ev
 		expressionScore := decimal.NewFromInt(score.Result.Scores.Expression).Div(decimal.NewFromInt(30)).Mul(decimal.NewFromInt(expressionAllScore)).Round(0).IntPart()
 		response.AIEvaluation.ScoreEvaluation.Scores.ExpressionWithTotal = fmt.Sprintf("%d/%d", expressionScore, expressionAllScore)
 
-		// 结构分值/总分
-		structureAllScore := DivideAndRoundDown(response.EssayInfo.AllScore, 3)
-		structureScore := allScore - contentScore - expressionScore
-		response.AIEvaluation.ScoreEvaluation.Scores.StructureWithTotal = fmt.Sprintf("%d/%d", structureScore, structureAllScore)
-
-		// 发展分值/总分
-		developmentAllScore := DivideAndRoundDown(response.EssayInfo.AllScore, 3)
-		developmentScore := allScore - contentScore - expressionScore
-		response.AIEvaluation.ScoreEvaluation.Scores.DevelopmentWithTotal = fmt.Sprintf("%d/%d", developmentScore, developmentAllScore)
+		if score.Result.Scores.Structure > 0 {
+			// 结构分值/总分
+			structureAllScore := DivideAndRoundDown(response.EssayInfo.AllScore, 3)
+			structureScore := allScore - contentScore - expressionScore
+			response.AIEvaluation.ScoreEvaluation.Scores.StructureWithTotal = fmt.Sprintf("%d/%d", structureScore, structureAllScore)
+		} else {
+			// 发展分值/总分
+			developmentAllScore := DivideAndRoundDown(response.EssayInfo.AllScore, 3)
+			developmentScore := allScore - contentScore - expressionScore
+			response.AIEvaluation.ScoreEvaluation.Scores.DevelopmentWithTotal = fmt.Sprintf("%d/%d", developmentScore, developmentAllScore)
+		}
 	}
 }
 
