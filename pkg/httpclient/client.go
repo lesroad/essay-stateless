@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -41,11 +42,15 @@ func readResponseBodyForError(body io.ReadCloser, maxLength int) string {
 	return string(content)
 }
 
-func (c *Client) Post(ctx context.Context, url string, data interface{}, result interface{}) error {
+var dataMutex sync.RWMutex
+
+func (c *Client) Post(ctx context.Context, url string, data map[string]interface{}, result interface{}) error {
+	dataMutex.Lock()
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request data: %w", err)
 	}
+	dataMutex.Unlock()
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -107,11 +112,13 @@ func (c *Client) PostWithHeaders(ctx context.Context, url string, data interface
 	return nil
 }
 
-func (c *Client) PostWithStream(ctx context.Context, url string, headers map[string]string, body interface{}, resultChan chan<- string) error {
-	jsonData, err := json.Marshal(body)
+func (c *Client) PostWithStream(ctx context.Context, url string, headers map[string]string, data map[string]interface{}, resultChan chan<- string) error {
+	dataMutex.Lock()
+	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request data: %w", err)
 	}
+	dataMutex.Unlock()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
