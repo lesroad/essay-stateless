@@ -23,7 +23,6 @@ import (
 
 func main() {
 	cfg := config.Load()
-
 	logger.Init(cfg.Log)
 
 	// 初始化追踪
