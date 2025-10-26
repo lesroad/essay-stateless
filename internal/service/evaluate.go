@@ -708,72 +708,96 @@ func (s *evaluateService) processAPIResponsesStream(ctx context.Context, essay m
 			// 调用API
 			switch step.Name {
 			case "word_sentence":
-				var wordSentence *APIWordSentence
-				err = s.httpClient.Post(ctx, step.URL, essay, &wordSentence)
-				if err == nil {
+				err = RetryWithBackoff(ctx, func() error {
+					var wordSentence *APIWordSentence
+					if postErr := s.httpClient.Post(ctx, step.URL, essay, &wordSentence); postErr != nil {
+						return postErr
+					}
 					s.processWordSentence(wordSentence, response)
 					result = model.AIEvaluation{WordSentenceEvaluation: response.AIEvaluation.WordSentenceEvaluation}
-				}
+					return nil
+				}, step.Name)
 
 			case "grammar":
-				var grammarInfo *APIGrammarInfo
-				err = s.httpClient.Post(ctx, step.URL, essay, &grammarInfo)
-				if err == nil {
+				err = RetryWithBackoff(ctx, func() error {
+					var grammarInfo *APIGrammarInfo
+					if postErr := s.httpClient.Post(ctx, step.URL, essay, &grammarInfo); postErr != nil {
+						return postErr
+					}
 					s.processGrammarInfo(grammarInfo, response)
 					result = model.AIEvaluation{WordSentenceEvaluation: response.AIEvaluation.WordSentenceEvaluation}
-				}
+					return nil
+				}, step.Name)
 
 			case "fluency":
-				var fluency *APIFluency
-				err = s.httpClient.Post(ctx, step.URL, essay, &fluency)
-				if err == nil {
+				err = RetryWithBackoff(ctx, func() error {
+					var fluency *APIFluency
+					if postErr := s.httpClient.Post(ctx, step.URL, essay, &fluency); postErr != nil {
+						return postErr
+					}
 					s.processFluency(fluency, response)
 					result = model.AIEvaluation{FluencyEvaluation: response.AIEvaluation.FluencyEvaluation}
-				}
+					return nil
+				}, step.Name)
 
 			case "overall":
-				var overall *APIOverall
-				err = s.httpClient.Post(ctx, step.URL, essay, &overall)
-				if err == nil {
+				err = RetryWithBackoff(ctx, func() error {
+					var overall *APIOverall
+					if postErr := s.httpClient.Post(ctx, step.URL, essay, &overall); postErr != nil {
+						return postErr
+					}
 					s.processOverall(overall, response)
 					result = model.AIEvaluation{OverallEvaluation: response.AIEvaluation.OverallEvaluation}
-				}
+					return nil
+				}, step.Name)
 
 			case "expression":
-				var expression *APIExpression
-				err = s.httpClient.Post(ctx, step.URL, essay, &expression)
-				if err == nil {
+				err = RetryWithBackoff(ctx, func() error {
+					var expression *APIExpression
+					if postErr := s.httpClient.Post(ctx, step.URL, essay, &expression); postErr != nil {
+						return postErr
+					}
 					s.processExpression(expression, response)
 					result = model.AIEvaluation{ExpressionEvaluation: response.AIEvaluation.ExpressionEvaluation}
-				}
+					return nil
+				}, step.Name)
 
 			case "suggestion":
-				var suggestion *APISuggestion
-				err = s.httpClient.Post(ctx, step.URL, essay, &suggestion)
-				if err == nil {
+				err = RetryWithBackoff(ctx, func() error {
+					var suggestion *APISuggestion
+					if postErr := s.httpClient.Post(ctx, step.URL, essay, &suggestion); postErr != nil {
+						return postErr
+					}
 					s.processSuggestion(suggestion, response)
 					result = model.AIEvaluation{SuggestionEvaluation: response.AIEvaluation.SuggestionEvaluation}
-				}
+					return nil
+				}, step.Name)
 
 			case "paragraph":
-				var paragraph *APIParagraph
-				err = s.httpClient.Post(ctx, step.URL, essay, &paragraph)
-				if err == nil {
+				err = RetryWithBackoff(ctx, func() error {
+					var paragraph *APIParagraph
+					if postErr := s.httpClient.Post(ctx, step.URL, essay, &paragraph); postErr != nil {
+						return postErr
+					}
 					s.processParagraph(paragraph, response)
 					result = model.AIEvaluation{ParagraphEvaluations: response.AIEvaluation.ParagraphEvaluations}
-				}
+					return nil
+				}, step.Name)
 
 			case "score":
-				var score *model.APIScore
-				scoreEssay := essay
-				scoreEssay["prompt"] = ""
-				scoreEssay["image"] = ""
-				scoreEssay["type"] = "essay"
-				err = s.httpClient.Post(ctx, step.URL, scoreEssay, &score)
-				if err == nil {
+				err = RetryWithBackoff(ctx, func() error {
+					var score *model.APIScore
+					scoreEssay := essay
+					scoreEssay["prompt"] = ""
+					scoreEssay["image"] = ""
+					scoreEssay["type"] = "essay"
+					if postErr := s.httpClient.Post(ctx, step.URL, scoreEssay, &score); postErr != nil {
+						return postErr
+					}
 					s.processScore(score, response)
 					result = model.AIEvaluation{ScoreEvaluation: response.AIEvaluation.ScoreEvaluation}
-				}
+					return nil
+				}, step.Name)
 
 			case "polishing":
 				var subResultCh = make(chan string)
