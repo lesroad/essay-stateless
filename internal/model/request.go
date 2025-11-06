@@ -58,3 +58,17 @@ func (r *DefaultOcrRequest) JSONString() string {
 	}
 	return string(data)
 }
+
+// StatisticsRequest 单个学生的统计分析请求
+type StatisticsRequest struct {
+	WordSentenceEvaluation WordSentenceEvaluation `json:"wordSentenceEvaluation,omitempty"` // 好词好句评价
+	ScoreEvaluation        ScoreEvaluation        `json:"scoreEvaluations,omitempty"`       // 分数点评
+}
+
+// ClassStatisticsRequest 班级学情统计分析请求 - 直接传入学生数据数组
+type ClassStatisticsRequest []StatisticsRequest
+
+func (r ClassStatisticsRequest) JSONString() string {
+	data, _ := json.Marshal(r)
+	return string(data)
+}

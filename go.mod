@@ -5,7 +5,6 @@ go 1.23.0
 toolchain go1.23.4
 
 require (
-	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/jinzhu/copier v0.4.0
 	github.com/samber/lo v1.51.0

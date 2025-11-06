@@ -5,22 +5,22 @@ import (
 	"net/http"
 	"time"
 
+	appService "essay-stateless/internal/application/service"
 	"essay-stateless/internal/model"
 	"essay-stateless/internal/repository"
-	"essay-stateless/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
 
 type OcrHandler struct {
-	service     service.OcrService
+	serviceV2   *appService.OcrServiceV2
 	rawLogsRepo repository.RawLogsRepository
 }
 
-func NewOcrHandler(service service.OcrService, rawLogsRepo repository.RawLogsRepository) *OcrHandler {
+func NewOcrHandler(serviceV2 *appService.OcrServiceV2, rawLogsRepo repository.RawLogsRepository) *OcrHandler {
 	return &OcrHandler{
-		service:     service,
+		serviceV2:   serviceV2,
 		rawLogsRepo: rawLogsRepo,
 	}
 }
@@ -40,7 +40,7 @@ func (h *OcrHandler) TitleOcr(c *gin.Context) {
 		return
 	}
 
-	response, err := h.service.TitleOcr(c.Request.Context(), provider, imgType, &req)
+	response, err := h.serviceV2.TitleOcr(c.Request.Context(), provider, imgType, &req)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to perform title OCR")
 		c.JSON(http.StatusInternalServerError, model.NewErrorResponse(500, "Internal server error"))
@@ -53,7 +53,7 @@ func (h *OcrHandler) TitleOcr(c *gin.Context) {
 	c.JSON(http.StatusOK, model.NewSuccessResponse(response))
 }
 
-func (h *OcrHandler) saveRawLog(url, request string, response interface{}) {
+func (h *OcrHandler) saveRawLog(url, request string, response any) {
 	responseStr := ""
 	if resp, ok := response.(*model.DefaultOcrResponse); ok {
 		if data, err := resp.JSONString(); err == nil {
