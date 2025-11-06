@@ -51,7 +51,7 @@ func RequestLoggerMiddleware() gin.HandlerFunc {
 }
 
 func logRequest(c *gin.Context, bodyBytes []byte) {
-	requestLog := map[string]interface{}{
+	requestLog := map[string]any{
 		"url":         c.Request.URL.String(),
 		"remote_addr": c.ClientIP(),
 		"headers":     c.Request.Header,
@@ -62,7 +62,7 @@ func logRequest(c *gin.Context, bodyBytes []byte) {
 	if len(bodyBytes) > 0 {
 		bodyStr := string(bodyBytes)
 
-		var jsonBody interface{}
+		var jsonBody any
 		if err := json.Unmarshal(bodyBytes, &jsonBody); err == nil {
 			requestLog["body"] = jsonBody
 		} else {
@@ -79,7 +79,7 @@ func logRequest(c *gin.Context, bodyBytes []byte) {
 func logResponse(c *gin.Context, startTime time.Time, responseBody []byte) {
 	duration := time.Since(startTime)
 
-	responseLog := map[string]interface{}{
+	responseLog := map[string]any{
 		"status":      c.Writer.Status(),
 		"duration_ms": float64(duration.Nanoseconds()) / 1e6,
 	}
@@ -87,7 +87,7 @@ func logResponse(c *gin.Context, startTime time.Time, responseBody []byte) {
 	if len(responseBody) > 0 {
 		responseStr := string(responseBody)
 
-		var jsonResponse interface{}
+		var jsonResponse any
 		if err := json.Unmarshal(responseBody, &jsonResponse); err == nil {
 			responseLog["body"] = jsonResponse
 		} else {

@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	appService "essay-stateless/internal/application/service"
 	"essay-stateless/internal/config"
 	"essay-stateless/internal/handler"
 	"essay-stateless/internal/middleware"
 	"essay-stateless/internal/repository"
-	"essay-stateless/internal/service"
 	"essay-stateless/pkg/database"
 	"essay-stateless/pkg/logger"
 	"essay-stateless/pkg/trace"
@@ -40,15 +40,17 @@ func main() {
 
 	rawLogsRepo := repository.NewRawLogsRepository(db.Database())
 
-	ocrService := service.NewOcrService(&cfg.OCR)
-	evaluateService := service.NewEvaluateService(&cfg.Evaluate, ocrService)
-	billingService := service.NewBillingService(&cfg.Lago)
+	// 初始化新版服务（基于DDD架构）
+	evaluateServiceV2 := appService.NewEvaluateServiceV2(&cfg.Evaluate)
+	ocrServiceV2 := appService.NewOcrServiceV2(&cfg.OCR)
+	statisticsServiceV2 := appService.NewStatisticsServiceV2()
 
-	evaluateHandler := handler.NewEvaluateHandler(evaluateService, rawLogsRepo, billingService)
-	ocrHandler := handler.NewOcrHandler(ocrService, rawLogsRepo)
-	billingHandler := handler.NewBillingHandler(billingService)
+	// 初始化Handler（使用新版服务）
+	evaluateHandler := handler.NewEvaluateHandler(evaluateServiceV2, rawLogsRepo)
+	ocrHandler := handler.NewOcrHandler(ocrServiceV2, rawLogsRepo)
+	statisticsHandler := handler.NewStatisticsHandler(statisticsServiceV2, rawLogsRepo)
 
-	router := setupRouter(evaluateHandler, ocrHandler, billingHandler)
+	router := setupRouter(evaluateHandler, ocrHandler, statisticsHandler)
 
 	server := &http.Server{
 		Addr:    cfg.Server.Port,
@@ -75,7 +77,7 @@ func main() {
 	log.Println("Server exited")
 }
 
-func setupRouter(evaluateHandler *handler.EvaluateHandler, ocrHandler *handler.OcrHandler, billingHandler *handler.BillingHandler) *gin.Engine {
+func setupRouter(evaluateHandler *handler.EvaluateHandler, ocrHandler *handler.OcrHandler, statisticsHandler *handler.StatisticsHandler) *gin.Engine {
 	router := gin.New()
 
 	router.Use(gin.Recovery())
@@ -93,11 +95,9 @@ func setupRouter(evaluateHandler *handler.EvaluateHandler, ocrHandler *handler.O
 		sts.POST("/ocr/title/:provider/:imgType", ocrHandler.TitleOcr)
 	}
 
-	billing := router.Group("/billing")
+	statistics := router.Group("/statistics")
 	{
-		billing.POST("/customer", billingHandler.CreateCustomer)
-		billing.GET("/usage/:user_id", billingHandler.GetUsage)
-		billing.POST("/track", billingHandler.TrackUsage)
+		statistics.POST("/class", statisticsHandler.AnalyzeClassStatistics)
 	}
 
 	return router

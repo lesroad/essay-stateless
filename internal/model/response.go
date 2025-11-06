@@ -275,12 +275,12 @@ func (r *DefaultOcrResponse) JSONString() (string, error) {
 
 // StreamEvaluateResponse 流式评估响应
 type StreamEvaluateResponse struct {
-	Type      string      `json:"type"`      // 响应类型: "init", "progress", "complete", "error"
-	Step      string      `json:"step"`      // 当前步骤: "essay_info", "overall", "fluency", "word_sentence", "expression", "suggestion", "paragraph", "grammar"
-	Progress  int         `json:"progress"`  // 进度百分比 (0-100)
-	Data      interface{} `json:"data"`      // 具体数据
-	Message   string      `json:"message"`   // 状态消息
-	Timestamp int64       `json:"timestamp"` // 时间戳
+	Type      string `json:"type"`      // 响应类型: "init", "progress", "complete", "error"
+	Step      string `json:"step"`      // 当前步骤: "essay_info", "overall", "fluency", "word_sentence", "expression", "suggestion", "paragraph", "grammar"
+	Progress  int    `json:"progress"`  // 进度百分比 (0-100)
+	Data      any    `json:"data"`      // 具体数据
+	Message   string `json:"message"`   // 状态消息
+	Timestamp int64  `json:"timestamp"` // 时间戳
 }
 
 // StreamInitData 初始化数据
@@ -292,8 +292,8 @@ type StreamInitData struct {
 
 // StreamStepData 步骤完成数据
 type StreamStepData struct {
-	Step string      `json:"step"`
-	Data interface{} `json:"data"`
+	Step string `json:"step"`
+	Data any    `json:"data"`
 }
 
 // StreamCompleteData 完成数据
@@ -314,4 +314,97 @@ func (r *StreamEvaluateResponse) JSONString() (string, error) {
 		return "", err
 	}
 	return string(data), nil
+}
+
+// ClassStatisticsResponse 班级学情统计分析响应
+type ClassStatisticsResponse struct {
+	TotalStudents      int                `json:"totalStudents"`      // 总学生数
+	OverallPerformance OverallPerformance `json:"overallPerformance"` // 整体表现
+	ErrorAnalysis      ErrorAnalysis      `json:"errorAnalysis"`      // 错误分析
+	HighlightAnalysis  HighlightAnalysis  `json:"highlightAnalysis"`  // 亮点分析
+	GeneratedTime      int64              `json:"generatedTime"`      // 生成时间戳
+}
+
+// OverallPerformance 整体表现分析
+type OverallPerformance struct {
+	AverageScore         float64                 `json:"averageScore"`         // 平均分
+	GradeDistribution    []GradeDistributionItem `json:"gradeDistribution"`    // 等级分布：优秀、良好、合格、不合格分别多少人
+	SkillMasteryAnalysis []SkillMasteryItem      `json:"skillMasteryAnalysis"` // 写作技能掌握情况：各项技能在不同等级中的分布
+	Summary              string                  `json:"summary"`              // 整体表现总结
+}
+
+// GradeDistributionItem 等级分布项
+type GradeDistributionItem struct {
+	Grade        string  `json:"grade"`        // 等级名称：优秀、良好、合格、不合格
+	StudentCount int     `json:"studentCount"` // 该等级的学生人数
+	Percentage   float64 `json:"percentage"`   // 占总学生数的百分比
+}
+
+// SkillMasteryItem 写作技能掌握情况项
+type SkillMasteryItem struct {
+	SkillName         string                   `json:"skillName"`         // 技能名称：All、Appearance、Content、Expression、Structure、Development
+	GradeDistribution []SkillGradeDistribution `json:"gradeDistribution"` // 该技能在各等级中的分布
+}
+
+// SkillGradeDistribution 技能等级分布
+type SkillGradeDistribution struct {
+	Grade        string  `json:"grade"`        // 等级名称
+	StudentCount int     `json:"studentCount"` // 该等级的学生人数
+	Percentage   float64 `json:"percentage"`   // 占总学生数的百分比
+}
+
+// ErrorAnalysis 错误分析
+type ErrorAnalysis struct {
+	ErrorDistribution []ErrorDistributionItem `json:"errorDistribution"` // 错误个数分布：0个到6个及以上分别有多少人
+	ErrorTypeRatio    []ErrorTypeItem         `json:"errorTypeRatio"`    // 错误类型占比：每种错误类型占比多少，分别是多少人次
+	HighFrequencyList []HighFrequencyError    `json:"highFrequencyList"` // 高频错误列表：哪些错误分别有多少人次犯了，从多到少排序
+}
+
+// ErrorDistributionItem 错误个数分布项
+type ErrorDistributionItem struct {
+	ErrorCount   string  `json:"errorCount"`   // 错误个数范围，如"0个", "1个", "2个", ..., "6个及以上"
+	StudentCount int     `json:"studentCount"` // 该错误个数范围的学生人数
+	Percentage   float64 `json:"percentage"`   // 占总学生数的百分比
+}
+
+// ErrorTypeItem 错误类型占比项
+type ErrorTypeItem struct {
+	ErrorType    string  `json:"errorType"`    // 错误类型名称
+	Count        int     `json:"count"`        // 该类型错误总人次
+	Percentage   float64 `json:"percentage"`   // 占所有错误的百分比
+	StudentCount int     `json:"studentCount"` // 犯该类型错误的学生人数
+}
+
+// HighFrequencyError 高频错误项
+type HighFrequencyError struct {
+	ErrorText string   `json:"errorText"` // 具体错误内容
+	ErrorType string   `json:"errorType"` // 错误类型
+	Count     int      `json:"count"`     // 犯该错误的人次
+	Examples  []string `json:"examples"`  // 错误示例（原文->修改后）
+}
+
+// HighlightAnalysis 亮点分析
+type HighlightAnalysis struct {
+	HighlightDistribution []HighlightDistributionItem `json:"highlightDistribution"` // 亮点个数分布：0个到6个及以上分别有多少人
+	HighlightTypeRatio    []HighlightTypeItem         `json:"highlightTypeRatio"`    // 亮点类型占比：每种亮点类型占比多少，分别是多少人次
+}
+
+// HighlightDistributionItem 亮点个数分布项
+type HighlightDistributionItem struct {
+	HighlightCount string  `json:"highlightCount"` // 亮点个数范围，如"0个", "1个", "2个", ..., "6个及以上"
+	StudentCount   int     `json:"studentCount"`   // 该亮点个数范围的学生人数
+	Percentage     float64 `json:"percentage"`     // 占总学生数的百分比
+}
+
+// HighlightTypeItem 亮点类型占比项
+type HighlightTypeItem struct {
+	HighlightType string  `json:"highlightType"` // 亮点类型名称
+	Count         int     `json:"count"`         // 该类型亮点总人次
+	Percentage    float64 `json:"percentage"`    // 占所有亮点的百分比
+	StudentCount  int     `json:"studentCount"`  // 有该类型亮点的学生人数
+}
+
+func (r *ClassStatisticsResponse) JSONString() string {
+	data, _ := json.Marshal(r)
+	return string(data)
 }

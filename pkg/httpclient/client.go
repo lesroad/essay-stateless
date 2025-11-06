@@ -44,7 +44,7 @@ func readResponseBodyForError(body io.ReadCloser, maxLength int) string {
 
 var dataMutex sync.RWMutex
 
-func (c *Client) Post(ctx context.Context, url string, data map[string]interface{}, result interface{}) error {
+func (c *Client) Post(ctx context.Context, url string, data map[string]any, result any) error {
 	dataMutex.Lock()
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -77,7 +77,7 @@ func (c *Client) Post(ctx context.Context, url string, data map[string]interface
 	return nil
 }
 
-func (c *Client) PostWithHeaders(ctx context.Context, url string, data interface{}, result interface{}, headers map[string]string) error {
+func (c *Client) PostWithHeaders(ctx context.Context, url string, data any, result any, headers map[string]string) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request data: %w", err)
@@ -112,7 +112,7 @@ func (c *Client) PostWithHeaders(ctx context.Context, url string, data interface
 	return nil
 }
 
-func (c *Client) PostWithStream(ctx context.Context, url string, headers map[string]string, data map[string]interface{}, resultChan chan<- string) error {
+func (c *Client) PostWithStream(ctx context.Context, url string, headers map[string]string, data map[string]any, resultChan chan<- string) error {
 	dataMutex.Lock()
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -154,7 +154,7 @@ func (c *Client) PostWithStream(ctx context.Context, url string, headers map[str
 		if strings.HasPrefix(line, "data:") {
 			data := strings.TrimPrefix(line, "data:")
 
-			var eventMap map[string]interface{}
+			var eventMap map[string]any
 			if err := json.Unmarshal([]byte(data), &eventMap); err != nil {
 				logrus.Errorf("JSON解析错误: %v, 原始数据: %s", err, data)
 				continue

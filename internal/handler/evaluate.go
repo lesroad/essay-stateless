@@ -5,25 +5,23 @@ import (
 	"net/http"
 	"time"
 
+	appService "essay-stateless/internal/application/service"
 	"essay-stateless/internal/model"
 	"essay-stateless/internal/repository"
-	"essay-stateless/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
 
 type EvaluateHandler struct {
-	service        service.EvaluateService
-	rawLogsRepo    repository.RawLogsRepository
-	billingService service.BillingService
+	serviceV2   *appService.EvaluateServiceV2
+	rawLogsRepo repository.RawLogsRepository
 }
 
-func NewEvaluateHandler(service service.EvaluateService, rawLogsRepo repository.RawLogsRepository, billingService service.BillingService) *EvaluateHandler {
+func NewEvaluateHandler(serviceV2 *appService.EvaluateServiceV2, rawLogsRepo repository.RawLogsRepository) *EvaluateHandler {
 	return &EvaluateHandler{
-		service:        service,
-		rawLogsRepo:    rawLogsRepo,
-		billingService: billingService,
+		serviceV2:   serviceV2,
+		rawLogsRepo: rawLogsRepo,
 	}
 }
 
@@ -76,13 +74,8 @@ func (h *EvaluateHandler) EvaluateStream(c *gin.Context) {
 			}
 		}()
 
-		if err := h.service.EvaluateStream(c.Request.Context(), &req, ch); err != nil {
+		if err := h.serviceV2.EvaluateStream(c.Request.Context(), &req, ch); err != nil {
 			logrus.WithError(err).Error("Failed to stream evaluate essay")
-		}
-
-		// 跟踪使用量
-		if err := h.billingService.TrackUsage(c.Request.Context(), userID, "essay_evaluate_stream", 1); err != nil {
-			logrus.WithError(err).Error("Failed to track usage for stream essay evaluation")
 		}
 	}()
 
