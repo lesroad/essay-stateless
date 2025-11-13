@@ -6,6 +6,8 @@ import (
 	"essay-stateless/internal/model"
 	"essay-stateless/pkg/httpclient"
 	"fmt"
+
+	"github.com/jinzhu/copier"
 )
 
 // APIClient 评估API客户端接口
@@ -196,12 +198,17 @@ func NewScoreClient(apiURL string) *ScoreClient {
 }
 
 func (c *ScoreClient) Calculate(ctx context.Context, essay map[string]any) (*model.APIScore, error) {
-	scoreEssay := essay
+	scoreEssay := make(map[string]any)
+	if err := copier.Copy(&scoreEssay, &essay); err != nil {
+		return nil, err
+	}
+
 	scoreEssay["prompt"] = ""
 	scoreEssay["image"] = ""
 	scoreEssay["type"] = "essay"
+
 	var response model.APIScore
-	if err := c.client.Post(ctx, c.apiURL, essay, &response); err != nil {
+	if err := c.client.Post(ctx, c.apiURL, scoreEssay, &response); err != nil {
 		return nil, fmt.Errorf("评分计算失败: %w", err)
 	}
 	return &response, nil
