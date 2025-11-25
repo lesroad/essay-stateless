@@ -3,6 +3,7 @@ package evaluate
 import (
 	dto_evaluate "essay-stateless/internal/dto/evaluate"
 	"essay-stateless/internal/model"
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -13,17 +14,15 @@ import (
 
 // ResponseProcessor 响应处理器
 type ResponseProcessor struct {
-	cleaner   *ContentCleaner
-	posCalc   *PositionCalculator
-	scoreCalc *ScoreCalculator
+	cleaner *ContentCleaner
+	posCalc *PositionCalculator
 }
 
 // NewResponseProcessor 创建响应处理器
 func NewResponseProcessor() *ResponseProcessor {
 	return &ResponseProcessor{
-		cleaner:   NewContentCleaner(),
-		posCalc:   NewPositionCalculator(),
-		scoreCalc: NewScoreCalculator(),
+		cleaner: NewContentCleaner(),
+		posCalc: NewPositionCalculator(),
 	}
 }
 
@@ -148,7 +147,7 @@ func (p *ResponseProcessor) ProcessParagraph(paragraph *dto_evaluate.APIParagrap
 }
 
 // ProcessScore 处理评分响应
-func (p *ResponseProcessor) ProcessScore(score *model.APIScore, response *model.EvaluateResponse) {
+func (p *ResponseProcessor) ProcessScore(score *model.APIScore, req *model.EvaluateRequest, response *model.EvaluateResponse) {
 	if score == nil {
 		return
 	}
@@ -174,28 +173,29 @@ func (p *ResponseProcessor) ProcessScore(score *model.APIScore, response *model.
 	response.AIEvaluation.ScoreEvaluation.Scores.Structure = score.Result.Scores.Structure
 	response.AIEvaluation.ScoreEvaluation.Scores.Development = score.Result.Scores.Development
 
-	// 使用ScoreCalculator计算各项分数
-	allScore, allWithTotal := p.scoreCalc.CalculateAllScore(
-		score.Result.Scores.All, 90, response.EssayInfo.AllScore)
-	response.AIEvaluation.ScoreEvaluation.Scores.AllWithTotal = allWithTotal
+	// 计算总分比例（直接用上游分数和总分）
+	response.AIEvaluation.ScoreEvaluation.Scores.AllWithTotal = fmt.Sprintf("%d/%d",
+		score.Result.Scores.All, response.EssayInfo.AllScore)
 
-	contentScore, contentWithTotal := p.scoreCalc.CalculateSubScore(
-		score.Result.Scores.Content, 30, response.EssayInfo.AllScore, "up")
-	response.AIEvaluation.ScoreEvaluation.Scores.ContentWithTotal = contentWithTotal
+	// 计算各项分数比例（使用 req 中的分项总分作为分母）
+	if req.ContentScore != nil && *req.ContentScore > 0 {
+		response.AIEvaluation.ScoreEvaluation.Scores.ContentWithTotal = fmt.Sprintf("%d/%d",
+			score.Result.Scores.Content, *req.ContentScore)
+	}
 
-	expressionScore, expressionWithTotal := p.scoreCalc.CalculateSubScore(
-		score.Result.Scores.Expression, 30, response.EssayInfo.AllScore, "down")
-	response.AIEvaluation.ScoreEvaluation.Scores.ExpressionWithTotal = expressionWithTotal
+	if req.ExpressionScore != nil && *req.ExpressionScore > 0 {
+		response.AIEvaluation.ScoreEvaluation.Scores.ExpressionWithTotal = fmt.Sprintf("%d/%d",
+			score.Result.Scores.Expression, *req.ExpressionScore)
+	}
 
-	// 处理结构或发展分数
-	if score.Result.Scores.Structure > 0 {
-		_, structureWithTotal := p.scoreCalc.CalculateRemainderScore(
-			allScore, contentScore, expressionScore, response.EssayInfo.AllScore)
-		response.AIEvaluation.ScoreEvaluation.Scores.StructureWithTotal = structureWithTotal
-	} else {
-		_, developmentWithTotal := p.scoreCalc.CalculateRemainderScore(
-			allScore, contentScore, expressionScore, response.EssayInfo.AllScore)
-		response.AIEvaluation.ScoreEvaluation.Scores.DevelopmentWithTotal = developmentWithTotal
+	if req.StructureScore != nil && *req.StructureScore > 0 {
+		response.AIEvaluation.ScoreEvaluation.Scores.StructureWithTotal = fmt.Sprintf("%d/%d",
+			score.Result.Scores.Structure, *req.StructureScore)
+	}
+
+	if req.DevelopmentScore != nil && *req.DevelopmentScore > 0 {
+		response.AIEvaluation.ScoreEvaluation.Scores.DevelopmentWithTotal = fmt.Sprintf("%d/%d",
+			score.Result.Scores.Development, *req.DevelopmentScore)
 	}
 }
 

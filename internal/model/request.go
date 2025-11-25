@@ -6,11 +6,17 @@ import (
 
 // EvaluateRequest 作文批改请求
 type EvaluateRequest struct {
-	Title      string  `json:"title"`
-	Content    string  `json:"content"`
-	Grade      *int    `json:"grade,omitempty"`
-	EssayType  *string `json:"essayType,omitempty"`
-	TotalScore *int64  `json:"totalScore,omitempty"`
+	Title            string  `json:"title"`
+	Content          string  `json:"content"`
+	Grade            *int    `json:"grade,omitempty"`
+	EssayType        *string `json:"essayType,omitempty"`
+	TotalScore       *int64  `json:"totalScore,omitempty"`
+	Prompt           *string `json:"prompt,omitempty"` // 题干/写作要求
+	Standard         *string `json:"standard,omitempty"`
+	ContentScore     *int64  `json:"contentScore,omitempty"`
+	ExpressionScore  *int64  `json:"expressionScore,omitempty"`
+	StructureScore   *int64  `json:"structureScore,omitempty"`
+	DevelopmentScore *int64  `json:"developmentScore,omitempty"`
 }
 
 func (r *EvaluateRequest) JSONString() string {

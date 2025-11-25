@@ -197,13 +197,39 @@ func NewScoreClient(apiURL string) *ScoreClient {
 	}
 }
 
-func (c *ScoreClient) Calculate(ctx context.Context, essay map[string]any) (*model.APIScore, error) {
+func (c *ScoreClient) Calculate(ctx context.Context, essay map[string]any, req *model.EvaluateRequest) (*model.APIScore, error) {
 	scoreEssay := make(map[string]any)
 	if err := copier.Copy(&scoreEssay, &essay); err != nil {
 		return nil, err
 	}
 
-	scoreEssay["prompt"] = ""
+	// 设置可选字段
+	if req.Prompt != nil {
+		scoreEssay["prompt"] = *req.Prompt
+	}
+	if req.Standard != nil {
+		scoreEssay["rubric"] = *req.Standard
+	}
+
+	// 构建自定义分项打分比例
+	if req.ContentScore != nil || req.ExpressionScore != nil ||
+		req.StructureScore != nil || req.DevelopmentScore != nil {
+		ratio := make(map[string]any)
+		if req.ContentScore != nil {
+			ratio["content"] = *req.ContentScore
+		}
+		if req.ExpressionScore != nil {
+			ratio["expression"] = *req.ExpressionScore
+		}
+		if req.StructureScore != nil {
+			ratio["structure"] = *req.StructureScore
+		}
+		if req.DevelopmentScore != nil {
+			ratio["development"] = *req.DevelopmentScore
+		}
+		scoreEssay["ratio"] = ratio
+	}
+
 	scoreEssay["image"] = ""
 	scoreEssay["type"] = "essay"
 
