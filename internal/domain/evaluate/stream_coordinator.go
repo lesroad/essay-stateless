@@ -107,7 +107,7 @@ func (c *StreamCoordinator) CoordinateEvaluation(
 	}, apiResultChan)
 
 	go c.callAPIAsync(ctx, &wg, "score", func() (any, error) {
-		return clients.CreateScoreClient().Calculate(ctx, essay)
+		return clients.CreateScoreClient().Calculate(ctx, essay, req)
 	}, apiResultChan)
 
 	// 润色流式处理（特殊处理）
@@ -118,7 +118,7 @@ func (c *StreamCoordinator) CoordinateEvaluation(
 		close(apiResultChan)
 	}()
 
-	c.aggregateResultsRealtime(response, resultChan, apiResultChan)
+	c.aggregateResultsRealtime(response, resultChan, apiResultChan, req)
 
 	// 发送完成消息
 	c.sendComplete(resultChan, response)
@@ -285,6 +285,7 @@ func (c *StreamCoordinator) aggregateResultsRealtime(
 	response *model.EvaluateResponse,
 	progressChan chan<- *model.StreamEvaluateResponse,
 	apiResultChan <-chan *APIResult,
+	req *model.EvaluateRequest,
 ) {
 	const totalAPIs = 9
 	const baseProgress = 15  // essay_info完成后的进度
@@ -307,7 +308,7 @@ func (c *StreamCoordinator) aggregateResultsRealtime(
 		}
 
 		// 根据step类型处理数据并发送进度
-		c.processAndSendProgress(result, response, progressChan, currentProgress)
+		c.processAndSendProgress(result, response, progressChan, currentProgress, req)
 
 		logrus.Infof("进度更新: [%s] %d%% (%d/%d 完成)", result.Step, currentProgress, completedCount, totalAPIs)
 	}
@@ -325,6 +326,7 @@ func (c *StreamCoordinator) processAndSendProgress(
 	response *model.EvaluateResponse,
 	progressChan chan<- *model.StreamEvaluateResponse,
 	progress int,
+	req *model.EvaluateRequest,
 ) {
 	if result.Data == nil {
 		logrus.Warnf("API [%s] 返回数据为空", result.Step)
@@ -378,7 +380,7 @@ func (c *StreamCoordinator) processAndSendProgress(
 
 	case "score":
 		if score, ok := result.Data.(*model.APIScore); ok {
-			c.responseProcessor.ProcessScore(score, response)
+			c.responseProcessor.ProcessScore(score, req, response)
 			stepData = model.AIEvaluation{ScoreEvaluation: response.AIEvaluation.ScoreEvaluation}
 		}
 
