@@ -102,27 +102,11 @@ func (p *ResponseProcessor) ProcessGrammar(grammarInfo *dto_evaluate.APIGrammarI
 	}
 }
 
-// ProcessFluency 处理流畅度响应
-func (p *ResponseProcessor) ProcessFluency(fluency *dto_evaluate.APIFluency, response *model.EvaluateResponse) {
-	if fluency != nil {
-		response.AIEvaluation.FluencyEvaluation.FluencyDescription = fluency.Comment
-		response.AIEvaluation.FluencyEvaluation.FluencyScore = fluency.Score
-	}
-}
-
 // ProcessOverall 处理总体评价响应
 func (p *ResponseProcessor) ProcessOverall(overall *dto_evaluate.APIOverall, response *model.EvaluateResponse) {
 	if overall != nil {
 		response.AIEvaluation.OverallEvaluation.Description = overall.Comment
 		response.AIEvaluation.OverallEvaluation.TopicRelevanceScore = overall.Score
-	}
-}
-
-// ProcessExpression 处理表达评估响应
-func (p *ResponseProcessor) ProcessExpression(expression *dto_evaluate.APIExpression, response *model.EvaluateResponse) {
-	if expression != nil {
-		response.AIEvaluation.ExpressionEvaluation.ExpressDescription = expression.Comment
-		response.AIEvaluation.ExpressionEvaluation.ExpressionScore = expression.Score
 	}
 }
 
@@ -310,9 +294,7 @@ func (p *ResponseProcessor) InitializeResponse(response *model.EvaluateResponse,
 	response.AIEvaluation = model.AIEvaluation{
 		ModelVersion:           modelVersion,
 		OverallEvaluation:      model.OverallEvaluation{},
-		FluencyEvaluation:      model.FluencyEvaluation{},
 		WordSentenceEvaluation: model.WordSentenceEvaluation{},
-		ExpressionEvaluation:   model.ExpressionEvaluation{},
 		SuggestionEvaluation:   model.SuggestionEvaluation{},
 		ParagraphEvaluations:   []model.ParagraphEvaluation{},
 		ScoreEvaluation:        model.ScoreEvaluation{},

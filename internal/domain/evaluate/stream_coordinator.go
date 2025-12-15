@@ -69,7 +69,7 @@ func (c *StreamCoordinator) CoordinateEvaluation(
 
 	apiResultChan := make(chan *APIResult, 9)
 	var wg sync.WaitGroup
-	wg.Add(9)
+	wg.Add(7)
 
 	essay := map[string]any{
 		"title": req.Title,
@@ -86,16 +86,8 @@ func (c *StreamCoordinator) CoordinateEvaluation(
 		return clients.CreateGrammarClient().Check(ctx, essay)
 	}, apiResultChan)
 
-	go c.callAPIAsync(ctx, &wg, "fluency", func() (any, error) {
-		return clients.CreateFluencyClient().Evaluate(ctx, essay)
-	}, apiResultChan)
-
 	go c.callAPIAsync(ctx, &wg, "overall", func() (any, error) {
 		return clients.CreateOverallClient().Evaluate(ctx, essay)
-	}, apiResultChan)
-
-	go c.callAPIAsync(ctx, &wg, "expression", func() (any, error) {
-		return clients.CreateExpressionClient().Evaluate(ctx, essay)
 	}, apiResultChan)
 
 	go c.callAPIAsync(ctx, &wg, "suggestion", func() (any, error) {
@@ -348,22 +340,10 @@ func (c *StreamCoordinator) processAndSendProgress(
 			stepData = model.AIEvaluation{WordSentenceEvaluation: response.AIEvaluation.WordSentenceEvaluation}
 		}
 
-	case "fluency":
-		if fluency, ok := result.Data.(*dto_evaluate.APIFluency); ok {
-			c.responseProcessor.ProcessFluency(fluency, response)
-			stepData = model.AIEvaluation{FluencyEvaluation: response.AIEvaluation.FluencyEvaluation}
-		}
-
 	case "overall":
 		if overall, ok := result.Data.(*dto_evaluate.APIOverall); ok {
 			c.responseProcessor.ProcessOverall(overall, response)
 			stepData = model.AIEvaluation{OverallEvaluation: response.AIEvaluation.OverallEvaluation}
-		}
-
-	case "expression":
-		if expression, ok := result.Data.(*dto_evaluate.APIExpression); ok {
-			c.responseProcessor.ProcessExpression(expression, response)
-			stepData = model.AIEvaluation{ExpressionEvaluation: response.AIEvaluation.ExpressionEvaluation}
 		}
 
 	case "suggestion":
@@ -402,9 +382,7 @@ func getStepMessage(step string) string {
 	messages := map[string]string{
 		"word_sentence": "词句评估完成",
 		"grammar":       "语法检查完成",
-		"fluency":       "流畅度评估完成",
 		"overall":       "总体评价完成",
-		"expression":    "表达评估完成",
 		"suggestion":    "建议生成完成",
 		"paragraph":     "段落评估完成",
 		"score":         "评分完成",

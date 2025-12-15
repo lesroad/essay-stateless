@@ -64,9 +64,7 @@ type Counting struct {
 type AIEvaluation struct {
 	ModelVersion           ModelVersion           `json:"modelVersion,omitempty"`
 	OverallEvaluation      OverallEvaluation      `json:"overallEvaluation,omitempty"`      // 总评
-	FluencyEvaluation      FluencyEvaluation      `json:"fluencyEvaluation,omitempty"`      // 流畅度评价
 	WordSentenceEvaluation WordSentenceEvaluation `json:"wordSentenceEvaluation,omitempty"` // 好词好句评价
-	ExpressionEvaluation   ExpressionEvaluation   `json:"expressionEvaluation,omitempty"`   // 逻辑表达评价
 	SuggestionEvaluation   SuggestionEvaluation   `json:"suggestionEvaluation,omitempty"`   // 建议
 	ParagraphEvaluations   []ParagraphEvaluation  `json:"paragraphEvaluations,omitempty"`   // 段落点评
 	ScoreEvaluation        ScoreEvaluation        `json:"scoreEvaluations,omitempty"`       // 分数点评
@@ -81,11 +79,6 @@ type ModelVersion struct {
 type OverallEvaluation struct {
 	Description         string `json:"description"`
 	TopicRelevanceScore int    `json:"topicRelevanceScore"`
-}
-
-type FluencyEvaluation struct {
-	FluencyDescription string `json:"fluencyDescription"`
-	FluencyScore       int    `json:"fluencyScore"`
 }
 
 /*
@@ -184,17 +177,6 @@ type WordEvaluation struct {
 	Revised string            `json:"revised,omitempty"`
 }
 
-/*
-	"expressionEvaluation": {
-				"expressDescription": "作文能围绕主题展开，但逻辑表达较松散，缺乏层次感。描述场景时重复信息较多（如"放风筝"），未能有效组织细节。人物活动描写琐碎，未形成连贯叙事。建议学习如何筛选关键细节，构建更有条理的场景描写，避免重复和碎片化表达。",
-				"expressionScore": 2
-			},
-*/
-type ExpressionEvaluation struct {
-	ExpressDescription string `json:"expressDescription"`
-	ExpressionScore    int    `json:"expressionScore"`
-}
-
 type SuggestionEvaluation struct {
 	SuggestionDescription string `json:"suggestionDescription"`
 }
@@ -276,7 +258,7 @@ func (r *DefaultOcrResponse) JSONString() (string, error) {
 // StreamEvaluateResponse 流式评估响应
 type StreamEvaluateResponse struct {
 	Type      string `json:"type"`      // 响应类型: "init", "progress", "complete", "error"
-	Step      string `json:"step"`      // 当前步骤: "essay_info", "overall", "fluency", "word_sentence", "expression", "suggestion", "paragraph", "grammar"
+	Step      string `json:"step"`      // 当前步骤
 	Progress  int    `json:"progress"`  // 进度百分比 (0-100)
 	Data      any    `json:"data"`      // 具体数据
 	Message   string `json:"message"`   // 状态消息

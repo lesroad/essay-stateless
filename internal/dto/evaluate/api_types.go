@@ -39,14 +39,6 @@ type APIOverall struct {
 	Message string `json:"message"`
 }
 
-// APIFluency 流畅度响应
-type APIFluency struct {
-	Comment string `json:"comment"`
-	Score   int    `json:"score"`
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
 // APIWordSentence 词句评估响应
 type APIWordSentence struct {
 	Data    APIWordSentenceData `json:"data"`
@@ -96,13 +88,6 @@ type APITypo struct {
 	Revised  string `json:"revised"`
 }
 
-// APIExpression 表达评估响应
-type APIExpression struct {
-	Comment string `json:"comment"`
-	Score   int    `json:"score"`
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
 
 // APISuggestion 建议响应
 type APISuggestion struct {
