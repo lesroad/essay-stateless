@@ -91,25 +91,6 @@ func (c *GrammarClient) Check(ctx context.Context, essay map[string]any) (*dto_e
 	return &response, nil
 }
 
-// FluencyClient 流畅度评估客户端
-type FluencyClient struct {
-	*BaseAPIClient
-}
-
-func NewFluencyClient(apiURL string) *FluencyClient {
-	return &FluencyClient{
-		BaseAPIClient: NewBaseAPIClient(apiURL),
-	}
-}
-
-func (c *FluencyClient) Evaluate(ctx context.Context, essay map[string]any) (*dto_evaluate.APIFluency, error) {
-	var response dto_evaluate.APIFluency
-	if err := c.client.Post(ctx, c.apiURL, essay, &response); err != nil {
-		return nil, fmt.Errorf("流畅度评估失败: %w", err)
-	}
-	return &response, nil
-}
-
 // OverallClient 总体评价客户端
 type OverallClient struct {
 	*BaseAPIClient
@@ -125,25 +106,6 @@ func (c *OverallClient) Evaluate(ctx context.Context, essay map[string]any) (*dt
 	var response dto_evaluate.APIOverall
 	if err := c.client.Post(ctx, c.apiURL, essay, &response); err != nil {
 		return nil, fmt.Errorf("总体评价失败: %w", err)
-	}
-	return &response, nil
-}
-
-// ExpressionClient 表达评估客户端
-type ExpressionClient struct {
-	*BaseAPIClient
-}
-
-func NewExpressionClient(apiURL string) *ExpressionClient {
-	return &ExpressionClient{
-		BaseAPIClient: NewBaseAPIClient(apiURL),
-	}
-}
-
-func (c *ExpressionClient) Evaluate(ctx context.Context, essay map[string]any) (*dto_evaluate.APIExpression, error) {
-	var response dto_evaluate.APIExpression
-	if err := c.client.Post(ctx, c.apiURL, essay, &response); err != nil {
-		return nil, fmt.Errorf("表达评估失败: %w", err)
 	}
 	return &response, nil
 }

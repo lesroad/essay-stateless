@@ -29,19 +29,9 @@ func (f *APIClientsFactory) CreateGrammarClient() *GrammarClient {
 	return NewGrammarClient(f.apiConfig.GrammarInfo)
 }
 
-// CreateFluencyClient 创建流畅度客户端
-func (f *APIClientsFactory) CreateFluencyClient() *FluencyClient {
-	return NewFluencyClient(f.apiConfig.Fluency)
-}
-
 // CreateOverallClient 创建总体评价客户端
 func (f *APIClientsFactory) CreateOverallClient() *OverallClient {
 	return NewOverallClient(f.apiConfig.Overall)
-}
-
-// CreateExpressionClient 创建表达评估客户端
-func (f *APIClientsFactory) CreateExpressionClient() *ExpressionClient {
-	return NewExpressionClient(f.apiConfig.Expression)
 }
 
 // CreateSuggestionClient 创建建议生成客户端

@@ -38,9 +38,7 @@ type EvaluateConfig struct {
 
 type EvaluateAPIConfig struct {
 	Overall      string `mapstructure:"overall"`
-	Fluency      string `mapstructure:"fluency"`
 	WordSentence string `mapstructure:"word_sentence"`
-	Expression   string `mapstructure:"expression"`
 	Suggestion   string `mapstructure:"suggestion"`
 	Paragraph    string `mapstructure:"paragraph"`
 	GrammarInfo  string `mapstructure:"grammar_info"`
