@@ -1,25 +1,63 @@
 package statistics
 
-import "essay-stateless/internal/model"
+import (
+	"essay-stateless/internal/model"
+	"strconv"
+	"strings"
+)
 
-// FromRequestModel 将请求模型转换为内部数据结构
 func FromRequestModel(requests []model.StatisticsRequest) []StudentData {
 	students := make([]StudentData, len(requests))
 
 	for i, req := range requests {
+		allScore, allTotal := parseWithTotal(req.ScoreEvaluation.Scores.AllWithTotal, req.ScoreEvaluation.Scores.All)
+		contentScore, contentTotal := parseWithTotal(req.ScoreEvaluation.Scores.ContentWithTotal, req.ScoreEvaluation.Scores.Content)
+		expressionScore, expressionTotal := parseWithTotal(req.ScoreEvaluation.Scores.ExpressionWithTotal, req.ScoreEvaluation.Scores.Expression)
+		structureScore, structureTotal := parseWithTotal(req.ScoreEvaluation.Scores.StructureWithTotal, req.ScoreEvaluation.Scores.Structure)
+		developmentScore, developmentTotal := parseWithTotal(req.ScoreEvaluation.Scores.DevelopmentWithTotal, req.ScoreEvaluation.Scores.Development)
+
 		students[i] = StudentData{
 			WordSentenceEvaluation: convertWordSentenceEvaluation(req.WordSentenceEvaluation),
-			Scores: ScoreData{
-				All:         int(req.ScoreEvaluation.Scores.All),
-				Content:     int(req.ScoreEvaluation.Scores.Content),
-				Expression:  int(req.ScoreEvaluation.Scores.Expression),
-				Structure:   int(req.ScoreEvaluation.Scores.Structure),
-				Development: int(req.ScoreEvaluation.Scores.Development),
+			EssayScore: ScoreData{
+				All:         allScore,
+				Content:     contentScore,
+				Expression:  expressionScore,
+				Structure:   structureScore,
+				Development: developmentScore,
+			},
+			EssayTotalScore: ScoreData{
+				All:         allTotal,
+				Content:     contentTotal,
+				Expression:  expressionTotal,
+				Structure:   structureTotal,
+				Development: developmentTotal,
 			},
 		}
 	}
 
 	return students
+}
+
+// parseWithTotal 解析形如 "a/b" 的分数字符串，返回 (a, b)。
+func parseWithTotal(withTotal string, fallbackScore int64) (score int, total int) {
+	s := strings.TrimSpace(withTotal)
+	parts := strings.SplitN(s, "/", 2)
+	if len(parts) != 2 {
+		return int(fallbackScore), 0
+	}
+
+	left := strings.TrimSpace(parts[0])
+	right := strings.TrimSpace(parts[1])
+	if left == "" || right == "" {
+		return int(fallbackScore), 0
+	}
+
+	num, err1 := strconv.ParseInt(left, 10, 64)
+	den, err2 := strconv.ParseInt(right, 10, 64)
+	if err1 != nil || err2 != nil || den < 0 {
+		return int(fallbackScore), 0
+	}
+	return int(num), int(den)
 }
 
 func convertWordSentenceEvaluation(src model.WordSentenceEvaluation) WordSentenceEvaluation {
@@ -55,15 +93,13 @@ func convertWordEvaluations(src []model.WordEvaluation) []WordEvaluation {
 	return dst
 }
 
-// ToResponseModel 将分析结果转换为响应模型
 func ToResponseModel(result *AnalyzeResult, generatedTime int64) *model.ClassStatisticsResponse {
 	return &model.ClassStatisticsResponse{
-		TotalStudents: result.TotalStudents,
+		SubmissionPercentage: result.SubmissionPercentage,
 		OverallPerformance: model.OverallPerformance{
 			AverageScore:         result.OverallPerformance.AverageScore,
 			GradeDistribution:    convertGradeDistribution(result.OverallPerformance.GradeDistribution),
 			SkillMasteryAnalysis: convertSkillMastery(result.OverallPerformance.SkillMasteryAnalysis),
-			Summary:              result.OverallPerformance.Summary,
 		},
 		ErrorAnalysis: model.ErrorAnalysis{
 			ErrorDistribution: convertErrorDistribution(result.ErrorAnalysis.ErrorDistribution),
@@ -78,12 +114,11 @@ func ToResponseModel(result *AnalyzeResult, generatedTime int64) *model.ClassSta
 	}
 }
 
-// AnalyzeResult 是从 domain/statistics 导入的
 type AnalyzeResult struct {
-	TotalStudents      int
-	OverallPerformance OverallPerformance
-	ErrorAnalysis      ErrorAnalysis
-	HighlightAnalysis  HighlightAnalysis
+	SubmissionPercentage float64
+	OverallPerformance   OverallPerformance
+	ErrorAnalysis        ErrorAnalysis
+	HighlightAnalysis    HighlightAnalysis
 }
 
 func convertGradeDistribution(src []GradeDistributionItem) []model.GradeDistributionItem {

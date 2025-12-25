@@ -5,16 +5,13 @@ import (
 	"sort"
 )
 
-// HighlightAnalyzer 亮点分析器
 type HighlightAnalyzer struct {
 	gradeCalc  *GradeCalculator
 	typeMapper *HighlightTypeMapper
 }
 
-// HighlightTypeMapper 亮点类型映射器
 type HighlightTypeMapper struct{}
 
-// MapType 映射亮点类型
 func (m *HighlightTypeMapper) MapType(label string) string {
 	mappings := map[string]string{
 		"排比": "排比",
@@ -37,7 +34,6 @@ func (m *HighlightTypeMapper) MapType(label string) string {
 	return "其他"
 }
 
-// NewHighlightAnalyzer 创建亮点分析器
 func NewHighlightAnalyzer(gradeCalc *GradeCalculator) *HighlightAnalyzer {
 	return &HighlightAnalyzer{
 		gradeCalc:  gradeCalc,
@@ -45,14 +41,8 @@ func NewHighlightAnalyzer(gradeCalc *GradeCalculator) *HighlightAnalyzer {
 	}
 }
 
-// Analyze 分析亮点情况
 func (a *HighlightAnalyzer) Analyze(students []statistics.StudentData) statistics.HighlightAnalysis {
-	totalStudents := len(students)
-	if totalStudents == 0 {
-		return statistics.HighlightAnalysis{}
-	}
-
-	studentHighlightCounts := make([]int, totalStudents)
+	studentHighlightCounts := make([]int, len(students))
 	highlightTypeCount := make(map[string]int)
 	highlightTypeStudents := make(map[string]map[int]bool)
 
@@ -104,8 +94,8 @@ func (a *HighlightAnalyzer) Analyze(students []statistics.StudentData) statistic
 	}
 
 	return statistics.HighlightAnalysis{
-		HighlightDistribution: a.generateHighlightDistribution(studentHighlightCounts, totalStudents),
-		HighlightTypeRatio:    a.generateHighlightTypeRatio(highlightTypeCount, highlightTypeStudents, totalStudents),
+		HighlightDistribution: a.generateHighlightDistribution(studentHighlightCounts, len(students)),
+		HighlightTypeRatio:    a.generateHighlightTypeRatio(highlightTypeCount, highlightTypeStudents, len(students)),
 	}
 }
 

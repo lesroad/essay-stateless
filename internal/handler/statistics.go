@@ -13,13 +13,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// StatisticsHandler 学情统计分析处理器
 type StatisticsHandler struct {
 	serviceV2   *appService.StatisticsServiceV2
 	rawLogsRepo repository.RawLogsRepository
 }
 
-// NewStatisticsHandler 创建学情统计分析处理器
 func NewStatisticsHandler(serviceV2 *appService.StatisticsServiceV2, rawLogsRepo repository.RawLogsRepository) *StatisticsHandler {
 	return &StatisticsHandler{
 		serviceV2:   serviceV2,
@@ -27,7 +25,6 @@ func NewStatisticsHandler(serviceV2 *appService.StatisticsServiceV2, rawLogsRepo
 	}
 }
 
-// AnalyzeClassStatistics 班级学情统计分析接口
 func (h *StatisticsHandler) AnalyzeClassStatistics(c *gin.Context) {
 	var req model.ClassStatisticsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -36,18 +33,16 @@ func (h *StatisticsHandler) AnalyzeClassStatistics(c *gin.Context) {
 		return
 	}
 
-	// 参数验证
-	if len(req) == 0 {
+	if len(req.SubmittedStudents) == 0 {
 		c.JSON(http.StatusBadRequest, model.NewErrorResponse(400, "学生数据不能为空"))
 		return
 	}
 
-	if len(req) > 100 {
-		c.JSON(http.StatusBadRequest, model.NewErrorResponse(400, "学生数量不能超过100人"))
+	if req.TotalStudents > 200 {
+		c.JSON(http.StatusBadRequest, model.NewErrorResponse(400, "学生数量不能超过200人"))
 		return
 	}
 
-	// 调用服务层进行分析
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 	defer cancel()
 
@@ -57,7 +52,6 @@ func (h *StatisticsHandler) AnalyzeClassStatistics(c *gin.Context) {
 		return
 	}
 
-	// 异步保存日志
 	go func() {
 		h.saveRawLog("/statistics/class", req.JSONString(), response.JSONString())
 	}()

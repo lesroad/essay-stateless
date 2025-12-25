@@ -25,7 +25,6 @@ func NewGradeCalculator() *GradeCalculator {
 	}
 }
 
-// CalculateGrade 根据分数和满分计算等级
 func (c *GradeCalculator) CalculateGrade(score, maxScore float64) string {
 	if maxScore == 0 || score == 0 {
 		return "不合格"

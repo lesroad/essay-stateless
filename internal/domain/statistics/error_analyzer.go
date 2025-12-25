@@ -4,35 +4,24 @@ import (
 	"essay-stateless/internal/dto/statistics"
 	"sort"
 )
-
-// ErrorAnalyzer 错误分析器
 type ErrorAnalyzer struct {
 	gradeCalc *GradeCalculator
 }
 
-// NewErrorAnalyzer 创建错误分析器
 func NewErrorAnalyzer(gradeCalc *GradeCalculator) *ErrorAnalyzer {
 	return &ErrorAnalyzer{
 		gradeCalc: gradeCalc,
 	}
 }
 
-// Analyze 分析错误情况
 func (a *ErrorAnalyzer) Analyze(students []statistics.StudentData) statistics.ErrorAnalysis {
-	totalStudents := len(students)
-	if totalStudents == 0 {
-		return statistics.ErrorAnalysis{}
-	}
-
-	// 统计数据
-	studentErrorCounts := make([]int, totalStudents)
+	studentErrorCounts := make([]int, len(students))
 	errorTypeCount := make(map[string]int)
 	errorTypeStudents := make(map[string]map[int]bool)
 	specificErrorCount := make(map[string]int)
 	specificErrorType := make(map[string]string)
 	specificErrorExamples := make(map[string][]string)
 
-	// 遍历学生数据
 	for idx, student := range students {
 		errorCount := 0
 		errorTypes := make(map[string]bool)
@@ -78,8 +67,8 @@ func (a *ErrorAnalyzer) Analyze(students []statistics.StudentData) statistics.Er
 	}
 
 	return statistics.ErrorAnalysis{
-		ErrorDistribution: a.generateErrorDistribution(studentErrorCounts, totalStudents),
-		ErrorTypeRatio:    a.generateErrorTypeRatio(errorTypeCount, errorTypeStudents, totalStudents),
+		ErrorDistribution: a.generateErrorDistribution(studentErrorCounts, len(students)),
+		ErrorTypeRatio:    a.generateErrorTypeRatio(errorTypeCount, errorTypeStudents, len(students)),
 		HighFrequencyList: a.generateHighFrequencyList(specificErrorCount, specificErrorType, specificErrorExamples),
 	}
 }
