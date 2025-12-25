@@ -298,13 +298,12 @@ func (r *StreamEvaluateResponse) JSONString() (string, error) {
 	return string(data), nil
 }
 
-// ClassStatisticsResponse 班级学情统计分析响应
 type ClassStatisticsResponse struct {
-	TotalStudents      int                `json:"totalStudents"`      // 总学生数
-	OverallPerformance OverallPerformance `json:"overallPerformance"` // 整体表现
-	ErrorAnalysis      ErrorAnalysis      `json:"errorAnalysis"`      // 错误分析
-	HighlightAnalysis  HighlightAnalysis  `json:"highlightAnalysis"`  // 亮点分析
-	GeneratedTime      int64              `json:"generatedTime"`      // 生成时间戳
+	SubmissionPercentage float64            `json:"submissionPercentage"` // 提交率
+	OverallPerformance   OverallPerformance `json:"overallPerformance"`   // 整体表现
+	ErrorAnalysis        ErrorAnalysis      `json:"errorAnalysis"`        // 错误分析
+	HighlightAnalysis    HighlightAnalysis  `json:"highlightAnalysis"`    // 亮点分析
+	GeneratedTime        int64              `json:"generatedTime"`        // 生成时间戳
 }
 
 // OverallPerformance 整体表现分析

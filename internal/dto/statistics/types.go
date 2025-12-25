@@ -1,9 +1,9 @@
 package statistics
 
-// StudentData 学生数据（简化的内部表示）
 type StudentData struct {
 	WordSentenceEvaluation WordSentenceEvaluation
-	Scores                 ScoreData
+	EssayScore             ScoreData
+	EssayTotalScore        ScoreData
 }
 
 // WordSentenceEvaluation 好词好句评价
@@ -27,7 +27,6 @@ type WordEvaluation struct {
 	Revised string            `json:"revised"`
 }
 
-// ScoreData 分数数据
 type ScoreData struct {
 	All         int
 	Content     int
@@ -41,7 +40,6 @@ type OverallPerformance struct {
 	AverageScore         float64                 `json:"averageScore"`
 	GradeDistribution    []GradeDistributionItem `json:"gradeDistribution"`
 	SkillMasteryAnalysis []SkillMasteryItem      `json:"skillMasteryAnalysis"`
-	Summary              string                  `json:"summary"`
 }
 
 // GradeDistributionItem 等级分布项
@@ -64,7 +62,6 @@ type SkillGradeDistribution struct {
 	Percentage   float64 `json:"percentage"`
 }
 
-// ErrorAnalysis 错误分析
 type ErrorAnalysis struct {
 	ErrorDistribution []ErrorDistributionItem `json:"errorDistribution"`
 	ErrorTypeRatio    []ErrorTypeItem         `json:"errorTypeRatio"`
@@ -94,7 +91,6 @@ type HighFrequencyError struct {
 	Examples  []string `json:"examples"`
 }
 
-// HighlightAnalysis 亮点分析
 type HighlightAnalysis struct {
 	HighlightDistribution []HighlightDistributionItem `json:"highlightDistribution"`
 	HighlightTypeRatio    []HighlightTypeItem         `json:"highlightTypeRatio"`
@@ -114,4 +110,3 @@ type HighlightTypeItem struct {
 	Percentage    float64 `json:"percentage"`
 	StudentCount  int     `json:"studentCount"`
 }
-
