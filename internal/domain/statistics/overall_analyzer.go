@@ -79,11 +79,15 @@ func (a *OverallAnalyzer) generateSkillMastery(students []statistics.StudentData
 		{"Structure", float64(students[0].EssayTotalScore.Structure), func(s statistics.StudentData) float64 { return float64(s.EssayScore.Structure) }},
 		{"Development", float64(students[0].EssayTotalScore.Development), func(s statistics.StudentData) float64 { return float64(s.EssayScore.Development) }},
 	}
+	totalStudents := len(students)
 
 	grades := []string{"优秀", "良好", "合格", "不合格"}
 	result := make([]statistics.SkillMasteryItem, 0, len(skills))
 
 	for _, skill := range skills {
+		if skill.maxScore == 0 {
+			continue
+		}
 		gradeCount := make(map[string]int)
 
 		for _, student := range students {
@@ -95,12 +99,10 @@ func (a *OverallAnalyzer) generateSkillMastery(students []statistics.StudentData
 		gradeDistribution := make([]statistics.SkillGradeDistribution, 0, len(grades))
 		for _, grade := range grades {
 			count := gradeCount[grade]
-			percentage := 0.0
-
 			gradeDistribution = append(gradeDistribution, statistics.SkillGradeDistribution{
 				Grade:        grade,
 				StudentCount: count,
-				Percentage:   percentage,
+				Percentage:   float64(count) / float64(totalStudents) * 100,
 			})
 		}
 
