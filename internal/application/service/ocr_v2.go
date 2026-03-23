@@ -75,10 +75,17 @@ func (s *OcrServiceV2) arkTitleOcr(ctx context.Context, req *model.TitleOcrReque
 	if err != nil {
 		return nil, err
 	}
+	content = s.contentCleaner.Clean(content)
+
+	// 这里为 防止返回content中包含title，导致标题和内容混淆，将content的第一个\n作为title，并去除title
+	lines := strings.Split(content, "\n")
+	if len(lines) > 0 {
+		title = strings.TrimSpace(lines[0])
+		content = strings.Join(lines[1:], "\n")
+	}
 
 	return &model.TitleOcrResponse{
 		Title:   title,
-		Content: s.contentCleaner.Clean(content),
+		Content: content,
 	}, nil
 }
-
