@@ -77,11 +77,14 @@ func (s *OcrServiceV2) arkTitleOcr(ctx context.Context, req *model.TitleOcrReque
 	}
 	content = s.contentCleaner.Clean(content)
 
-	// 这里为 防止返回content中包含title，导致标题和内容混淆，将content的第一个\n作为title，并去除title
-	lines := strings.Split(content, "\n")
-	if len(lines) > 0 {
-		title = strings.TrimSpace(lines[0])
-		content = strings.Join(lines[1:], "\n")
+	// 这里为 防止返回content中包含title，导致标题和内容混淆，将content的第一个\n或者逗号前内容作为title
+	if title == "" {
+		parts := strings.FieldsFunc(content, func(r rune) bool {
+			return r == ',' || r == '，' || r == '\n' || r == '.' || r == '。'
+		})
+		if len(parts) > 0 {
+			title = parts[0]
+		}
 	}
 
 	return &model.TitleOcrResponse{
